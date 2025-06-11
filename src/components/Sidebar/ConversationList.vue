@@ -26,34 +26,50 @@
           v-for="conversation in chatStore.conversations"
           :key="conversation.id"
           @click="selectConversation(conversation)"
-          class="group relative flex items-center p-3 rounded-lg cursor-pointer transition-colors"
-          :class="isSelected(conversation) 
-            ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' 
-            : 'hover:bg-gray-50 dark:hover:bg-gray-700'"
+          class="group relative flex items-center rounded-lg cursor-pointer transition-colors"
+          :class="[
+            isSelected(conversation)
+              ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
+              : 'hover:bg-gray-50 dark:hover:bg-gray-700',
+            collapsed ? 'p-2 justify-center' : 'p-3'
+          ]"
         >
-          <!-- Conversation content -->
-          <div class="flex-1 min-w-0">
+          <!-- Collapsed state - show only avatar/icon -->
+          <div v-if="collapsed" class="flex items-center justify-center">
+            <div
+              class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium"
+              :class="isSelected(conversation)
+                ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300'
+                : 'bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300'"
+              :title="conversation.title"
+            >
+              {{ conversation.title.charAt(0).toUpperCase() }}
+            </div>
+          </div>
+
+          <!-- Expanded state - show full content -->
+          <div v-else class="flex-1 min-w-0">
             <div class="flex items-center justify-between">
-              <h3 
+              <h3
                 class="text-sm font-medium truncate"
-                :class="isSelected(conversation) 
-                  ? 'text-blue-900 dark:text-blue-100' 
+                :class="isSelected(conversation)
+                  ? 'text-blue-900 dark:text-blue-100'
                   : 'text-gray-900 dark:text-white'"
               >
                 {{ conversation.title }}
               </h3>
-              <span 
+              <span
                 class="text-xs ml-2 flex-shrink-0"
-                :class="isSelected(conversation) 
-                  ? 'text-blue-600 dark:text-blue-400' 
+                :class="isSelected(conversation)
+                  ? 'text-blue-600 dark:text-blue-400'
                   : 'text-gray-500 dark:text-gray-400'"
               >
                 {{ formatDate(conversation.updated_at) }}
               </span>
             </div>
-            
+
             <div class="flex items-center mt-1 space-x-2">
-              <span 
+              <span
                 class="text-xs px-2 py-0.5 rounded-full"
                 :class="isSelected(conversation)
                   ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300'
@@ -61,10 +77,10 @@
               >
                 {{ conversation.model_provider }}
               </span>
-              <span 
+              <span
                 class="text-xs truncate"
-                :class="isSelected(conversation) 
-                  ? 'text-blue-600 dark:text-blue-400' 
+                :class="isSelected(conversation)
+                  ? 'text-blue-600 dark:text-blue-400'
                   : 'text-gray-500 dark:text-gray-400'"
               >
                 {{ conversation.model_name }}
@@ -72,10 +88,10 @@
             </div>
           </div>
 
-          <!-- Actions menu -->
-          <div class="opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+          <!-- Actions menu (only in expanded state) -->
+          <div v-if="!collapsed" class="opacity-0 group-hover:opacity-100 transition-opacity ml-2">
             <button
-              @click.stop="showMenu(conversation)"
+              @click.stop="showMenu(conversation, $event)"
               class="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             >
               <EllipsisVerticalIcon class="w-4 h-4 text-gray-500 dark:text-gray-400" />
@@ -130,9 +146,17 @@ import {
 import { useChatStore } from '../../stores/chat'
 import type { Conversation } from '../../types'
 
+interface Props {
+  collapsed?: boolean
+}
+
 interface Emits {
   (e: 'conversationSelected'): void
 }
+
+const props = withDefaults(defineProps<Props>(), {
+  collapsed: false
+})
 
 const emit = defineEmits<Emits>()
 const chatStore = useChatStore()
@@ -173,11 +197,12 @@ async function selectConversation(conversation: Conversation) {
 
 function showMenu(conversation: Conversation, event?: MouseEvent) {
   menuConversation.value = conversation
-  
+
   if (event) {
+    const rect = (event.target as HTMLElement).getBoundingClientRect()
     menuPosition.value = {
-      top: `${event.clientY}px`,
-      left: `${event.clientX}px`
+      top: `${rect.bottom + window.scrollY}px`,
+      left: `${rect.left + window.scrollX}px`
     }
   }
 }
@@ -186,22 +211,30 @@ function hideMenu() {
   menuConversation.value = null
 }
 
-function renameConversation() {
+async function renameConversation() {
   if (!menuConversation.value) return
-  
+
   const newTitle = prompt('Enter new title:', menuConversation.value.title)
   if (newTitle && newTitle.trim()) {
-    chatStore.updateConversationTitle(menuConversation.value.id, newTitle.trim())
+    try {
+      await chatStore.updateConversationTitle(menuConversation.value.id, newTitle.trim())
+    } catch (error) {
+      console.error('Failed to rename conversation:', error)
+    }
   }
-  
+
   hideMenu()
 }
 
-function duplicateConversation() {
+async function duplicateConversation() {
   if (!menuConversation.value) return
-  
-  // Implementation for duplicating conversation
-  console.log('Duplicate conversation:', menuConversation.value.id)
+
+  try {
+    await chatStore.duplicateConversation(menuConversation.value.id)
+  } catch (error) {
+    console.error('Failed to duplicate conversation:', error)
+  }
+
   hideMenu()
 }
 

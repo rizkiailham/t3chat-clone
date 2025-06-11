@@ -2,32 +2,71 @@
   <div class="flex h-screen bg-gray-50 dark:bg-gray-900">
     <!-- Sidebar -->
     <div
-      class="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0 fixed lg:relative z-40 h-full"
-      :class="showSidebar ? 'translate-x-0' : '-translate-x-full'"
+      class="bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 ease-in-out fixed lg:relative z-40 h-full"
+      :class="{
+        'w-80 translate-x-0': showSidebar,
+        'w-0 -translate-x-full lg:translate-x-0 lg:w-16': !showSidebar,
+        'lg:w-80': showSidebar && !isMobile,
+        'lg:w-16': !showSidebar && !isMobile
+      }"
     >
       <!-- Header -->
       <div class="p-4 border-b border-gray-200 dark:border-gray-700">
         <div class="flex items-center justify-between">
-          <h1 class="text-xl font-semibold text-gray-900 dark:text-white">T3 Chat Clone</h1>
+          <h1
+            v-if="showSidebar || isMobile"
+            class="text-xl font-semibold text-gray-900 dark:text-white"
+          >
+            T3 Chat Clone
+          </h1>
+          <div class="flex items-center space-x-2">
+            <button
+              v-if="showSidebar || isMobile"
+              @click="showNewChatModal = true"
+              class="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              title="New Chat"
+            >
+              <PlusIcon class="w-5 h-5" />
+            </button>
+            <button
+              v-if="!isMobile"
+              @click="showSidebar = !showSidebar"
+              class="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              :title="showSidebar ? 'Collapse Sidebar' : 'Expand Sidebar'"
+            >
+              <ChevronLeftIcon v-if="showSidebar" class="w-5 h-5" />
+              <ChevronRightIcon v-else class="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Collapsed state - show only icons -->
+        <div v-if="!showSidebar && !isMobile" class="flex flex-col items-center space-y-3 mt-4">
           <button
             @click="showNewChatModal = true"
-            class="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            class="p-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            title="New Chat"
           >
-            <PlusIcon class="w-5 h-5" />
+            <PlusIcon class="w-6 h-6" />
           </button>
         </div>
       </div>
 
       <!-- Conversation List -->
-      <ConversationList @conversation-selected="showSidebar = false" />
+      <ConversationList
+        @conversation-selected="handleConversationSelected"
+        :collapsed="!showSidebar && !isMobile"
+      />
 
       <!-- User Menu -->
       <div class="p-4 border-t border-gray-200 dark:border-gray-700">
-        <div class="flex items-center space-x-3">
+        <div v-if="showSidebar || isMobile" class="flex items-center space-x-3">
           <img
-            :src="authStore.user?.avatar_url || '/default-avatar.png'"
+            :src="authStore.user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(authStore.user?.name || 'User')}&background=3b82f6&color=fff`"
             :alt="authStore.user?.name"
-            class="w-8 h-8 rounded-full"
+            class="w-8 h-8 rounded-full object-cover"
+            @error="handleAvatarError"
+            @load="() => console.log('Avatar loaded:', authStore.user?.avatar_url)"
           >
           <div class="flex-1 min-w-0">
             <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
@@ -40,8 +79,26 @@
           <button
             @click="handleSignOut"
             class="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+            title="Sign Out"
           >
-            <ArrowRightOnRectangleIcon class="w-4 h-4" />
+            <ArrowRightStartOnRectangleIcon class="w-4 h-4" />
+          </button>
+        </div>
+
+        <!-- Collapsed state -->
+        <div v-else class="flex flex-col items-center space-y-2">
+          <img
+            :src="authStore.user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(authStore.user?.name || 'User')}&background=3b82f6&color=fff`"
+            :alt="authStore.user?.name"
+            class="w-8 h-8 rounded-full object-cover"
+            @error="handleAvatarError"
+          >
+          <button
+            @click="handleSignOut"
+            class="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+            title="Sign Out"
+          >
+            <ArrowRightStartOnRectangleIcon class="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -136,21 +193,11 @@
               v-for="message in chatStore.messages"
               :key="message.id"
               :message="message"
+              @edit="handleEditMessage"
+              @regenerate="handleRegenerateMessage"
             />
             
-            <!-- Typing indicator -->
-            <div v-if="chatStore.streaming" class="flex items-start space-x-3">
-              <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                <span class="text-white text-sm font-medium">AI</span>
-              </div>
-              <div class="bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
-                <div class="flex space-x-1">
-                  <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                  <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
-                  <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-                </div>
-              </div>
-            </div>
+
           </div>
 
           <!-- Chat Input -->
@@ -175,18 +222,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch } from 'vue'
+import { ref, onMounted, nextTick, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import { useChatStore } from '../../stores/chat'
 import {
   PlusIcon,
   CogIcon,
-  ArrowRightOnRectangleIcon,
+  ArrowRightStartOnRectangleIcon,
   ChatBubbleLeftRightIcon,
   Bars3Icon,
   XMarkIcon,
-  ExclamationCircleIcon
+  ExclamationCircleIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon
 } from '@heroicons/vue/24/outline'
 
 import ConversationList from '../Sidebar/ConversationList.vue'
@@ -202,7 +251,15 @@ const chatStore = useChatStore()
 const messagesContainer = ref<HTMLElement>()
 const showNewChatModal = ref(false)
 const showSettings = ref(false)
-const showSidebar = ref(false)
+const showSidebar = ref(true) // Default to expanded
+
+
+
+// Detect mobile
+const isMobile = computed(() => {
+  if (typeof window === 'undefined') return false
+  return window.innerWidth < 1024
+})
 
 onMounted(async () => {
   if (!authStore.isAuthenticated) {
@@ -238,6 +295,34 @@ async function handleCreateConversation(data: { title: string; provider: string;
   }
 }
 
+function handleConversationSelected() {
+  if (isMobile.value) {
+    showSidebar.value = false
+  }
+}
+
+function handleAvatarError(event: Event) {
+  const img = event.target as HTMLImageElement
+  console.log('Avatar error, falling back to UI-Avatars. Original src:', img.src)
+  img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(authStore.user?.name || 'User')}&background=3b82f6&color=fff`
+}
+
+async function handleEditMessage(messageId: string, newContent: string) {
+  try {
+    await chatStore.editMessage(messageId, newContent)
+  } catch (error) {
+    console.error('Failed to edit message:', error)
+  }
+}
+
+async function handleRegenerateMessage(messageId: string) {
+  try {
+    await chatStore.regenerateMessage(messageId)
+  } catch (error) {
+    console.error('Failed to regenerate message:', error)
+  }
+}
+
 async function handleSignOut() {
   try {
     await authStore.signOut()
@@ -247,3 +332,20 @@ async function handleSignOut() {
   }
 }
 </script>
+
+<style scoped>
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+</style>

@@ -76,14 +76,24 @@ export const useChatStore = defineStore('chat', () => {
 
       console.log('Selecting conversation:', conversation.id, conversation.title)
 
-      currentConversation.value = conversation
-      const data = await db.getMessages(conversation.id)
-      messages.value = data
+      // Clear current state first
+      messages.value = []
+      currentConversation.value = null
 
-      console.log('Loaded messages:', data.length)
+      // Set new conversation
+      currentConversation.value = conversation
+
+      // Load messages
+      const data = await db.getMessages(conversation.id)
+      messages.value = [...data] // Force reactivity with spread operator
+
+      console.log('Loaded messages:', data.length, 'for conversation:', conversation.title)
     } catch (err: any) {
       console.error('Failed to select conversation:', err)
       error.value = err.message || 'Failed to load conversation'
+      // Reset state on error
+      currentConversation.value = null
+      messages.value = []
       throw err
     } finally {
       loading.value = false
@@ -106,11 +116,62 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  async function duplicateConversation(id: string) {
+    try {
+      loading.value = true
+      error.value = null
+
+      const authStore = useAuthStore()
+      if (!authStore.user) {
+        throw new Error('User not authenticated')
+      }
+
+      // Find the original conversation
+      const originalConversation = conversations.value.find(c => c.id === id)
+      if (!originalConversation) {
+        throw new Error('Conversation not found')
+      }
+
+      // Create new conversation
+      const newConversation = {
+        title: `${originalConversation.title} (Copy)`,
+        user_id: authStore.user.id,
+        model_provider: originalConversation.model_provider,
+        model_name: originalConversation.model_name,
+        system_prompt: originalConversation.system_prompt,
+      }
+
+      const createdConversation = await db.createConversation(newConversation)
+
+      // Get original messages
+      const originalMessages = await db.getMessages(id)
+
+      // Copy messages to new conversation
+      for (const message of originalMessages) {
+        await db.createMessage({
+          conversation_id: createdConversation.id,
+          role: message.role,
+          content: message.content,
+          metadata: message.metadata,
+        })
+      }
+
+      conversations.value.unshift(createdConversation)
+
+      return createdConversation
+    } catch (err: any) {
+      error.value = err.message || 'Failed to duplicate conversation'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function deleteConversation(id: string) {
     try {
       await db.deleteConversation(id)
       conversations.value = conversations.value.filter(c => c.id !== id)
-      
+
       if (currentConversation.value?.id === id) {
         currentConversation.value = null
         messages.value = []
@@ -121,7 +182,7 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  async function sendMessage(content: string, stream: boolean = true) {
+  async function sendMessage(content: string, stream: boolean = false) {
     if (!currentConversation.value) {
       throw new Error('No conversation selected')
     }
@@ -165,34 +226,99 @@ export const useChatStore = defineStore('chat', () => {
         let fullContent = ''
         const messageIndex = messages.value.length - 1
 
-        console.log('Starting stream...')
+        console.log('Starting stream...', {
+          provider: currentConversation.value.model_provider,
+          model: currentConversation.value.model_name,
+          messageCount: llmMessages.length
+        })
 
         try {
+          let hasContent = false
           for await (const chunk of llmService.streamMessage({
             messages: llmMessages,
             model: currentConversation.value.model_name,
             provider: currentConversation.value.model_provider,
             stream: true
           })) {
+            console.log('Received chunk:', chunk)
             fullContent += chunk
-            messages.value[messageIndex] = {
+            hasContent = true
+
+            // Force reactivity update
+            const updatedMessage = {
               ...messages.value[messageIndex],
               content: fullContent
             }
+            messages.value.splice(messageIndex, 1, updatedMessage)
           }
 
           console.log('Stream completed, final content length:', fullContent.length)
 
+          // If no content was streamed, try non-streaming
+          if (!hasContent || !fullContent.trim()) {
+            console.log('No streamed content, trying non-streaming...')
+            const response = await llmService.sendMessage({
+              messages: llmMessages,
+              model: currentConversation.value.model_name,
+              provider: currentConversation.value.model_provider,
+              stream: false
+            })
+
+            fullContent = response.choices[0].message.content
+            console.log('Non-streaming response received:', fullContent.substring(0, 100) + '...')
+
+            messages.value[messageIndex] = {
+              ...messages.value[messageIndex],
+              content: fullContent,
+              metadata: {
+                model: response.model,
+                tokens: response.usage?.total_tokens,
+                finish_reason: response.choices[0].finish_reason
+              }
+            }
+          }
+
           // Update the message in the database with final content
           if (fullContent) {
             await db.updateMessage(savedAssistantMessage.id, { content: fullContent })
+          } else {
+            throw new Error('No response content generated')
           }
         } catch (streamError) {
           console.error('Streaming error:', streamError)
-          // Remove the empty assistant message if streaming failed
-          messages.value.splice(messageIndex, 1)
-          await db.deleteMessage(savedAssistantMessage.id)
-          throw streamError
+
+          // Try non-streaming as fallback
+          try {
+            console.log('Streaming failed, trying non-streaming fallback...')
+            const response = await llmService.sendMessage({
+              messages: llmMessages,
+              model: currentConversation.value.model_name,
+              provider: currentConversation.value.model_provider,
+              stream: false
+            })
+
+            fullContent = response.choices[0].message.content
+            console.log('Fallback response received:', fullContent.substring(0, 100) + '...')
+
+            messages.value[messageIndex] = {
+              ...messages.value[messageIndex],
+              content: fullContent,
+              metadata: {
+                model: response.model,
+                tokens: response.usage?.total_tokens,
+                finish_reason: response.choices[0].finish_reason
+              }
+            }
+
+            // Update the message in the database with final content
+            await db.updateMessage(savedAssistantMessage.id, { content: fullContent })
+          } catch (fallbackError) {
+            console.error('Fallback also failed:', fallbackError)
+            // Remove the empty assistant message if both streaming and fallback failed
+            messages.value.splice(messageIndex, 1)
+            await db.deleteMessage(savedAssistantMessage.id)
+            throw streamError
+          }
         }
       } else {
         // Non-streaming response
@@ -245,6 +371,211 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  async function editMessage(id: string, newContent: string) {
+    if (!currentConversation.value) {
+      throw new Error('No conversation selected')
+    }
+
+    try {
+      // Update the message content
+      await db.updateMessage(id, { content: newContent })
+      const messageIndex = messages.value.findIndex(m => m.id === id)
+      if (messageIndex !== -1) {
+        messages.value[messageIndex] = {
+          ...messages.value[messageIndex],
+          content: newContent
+        }
+
+        // If this is a user message, regenerate the AI response
+        const editedMessage = messages.value[messageIndex]
+        if (editedMessage.role === 'user') {
+          console.log('User message edited, regenerating AI response...')
+
+          // Set streaming state
+          streaming.value = true
+          error.value = null
+
+          try {
+            // Find the next AI message (if any) and regenerate it
+            const nextMessageIndex = messageIndex + 1
+            if (nextMessageIndex < messages.value.length && messages.value[nextMessageIndex].role === 'assistant') {
+              await regenerateMessage(messages.value[nextMessageIndex].id)
+            } else {
+              // If no AI response exists, generate a new one
+              console.log('No AI response found, generating new response...')
+
+              // Get all messages up to and including the edited message
+              const contextMessages = messages.value.slice(0, messageIndex + 1)
+
+              // Prepare messages for LLM
+              const llmMessages: ChatMessage[] = contextMessages.map(m => ({
+                role: m.role,
+                content: m.content
+              }))
+
+              // Create assistant message placeholder
+              const assistantMessage = {
+                conversation_id: currentConversation.value.id,
+                role: 'assistant' as const,
+                content: '',
+                metadata: {}
+              }
+
+              const savedAssistantMessage = await db.createMessage(assistantMessage)
+              const newMessageIndex = messages.value.length
+              messages.value.push(savedAssistantMessage)
+
+              // Generate new AI response with fallback
+              let fullContent = ''
+              let hasContent = false
+
+              try {
+                for await (const chunk of llmService.streamMessage({
+                  messages: llmMessages,
+                  model: currentConversation.value.model_name,
+                  provider: currentConversation.value.model_provider,
+                  stream: true
+                })) {
+                  fullContent += chunk
+                  hasContent = true
+                  messages.value[newMessageIndex] = {
+                    ...messages.value[newMessageIndex],
+                    content: fullContent
+                  }
+                }
+              } catch (streamError) {
+                console.log('Streaming failed, trying non-streaming...')
+                hasContent = false
+              }
+
+              // Fallback to non-streaming if needed
+              if (!hasContent || !fullContent.trim()) {
+                const response = await llmService.sendMessage({
+                  messages: llmMessages,
+                  model: currentConversation.value.model_name,
+                  provider: currentConversation.value.model_provider,
+                  stream: false
+                })
+
+                fullContent = response.choices[0].message.content
+                messages.value[newMessageIndex] = {
+                  ...messages.value[newMessageIndex],
+                  content: fullContent,
+                  metadata: {
+                    model: response.model,
+                    tokens: response.usage?.total_tokens,
+                    finish_reason: response.choices[0].finish_reason
+                  }
+                }
+              }
+
+              // Update the message in the database
+              if (fullContent) {
+                await db.updateMessage(savedAssistantMessage.id, { content: fullContent })
+              }
+            }
+          } finally {
+            streaming.value = false
+          }
+        }
+      }
+    } catch (err: any) {
+      error.value = err.message || 'Failed to edit message'
+      throw err
+    }
+  }
+
+  async function regenerateMessage(id: string) {
+    if (!currentConversation.value) {
+      throw new Error('No conversation selected')
+    }
+
+    try {
+      streaming.value = true
+      error.value = null
+
+      // Find the message to regenerate
+      const messageIndex = messages.value.findIndex(m => m.id === id)
+      if (messageIndex === -1) {
+        throw new Error('Message not found')
+      }
+
+      // Get all messages up to (but not including) the message to regenerate
+      const contextMessages = messages.value.slice(0, messageIndex)
+
+      // Prepare messages for LLM
+      const llmMessages: ChatMessage[] = contextMessages.map(m => ({
+        role: m.role,
+        content: m.content
+      }))
+
+      // Clear the current message content
+      messages.value[messageIndex] = {
+        ...messages.value[messageIndex],
+        content: ''
+      }
+
+      // Try streaming first, then fallback to non-streaming
+      let fullContent = ''
+      let hasContent = false
+
+      try {
+        for await (const chunk of llmService.streamMessage({
+          messages: llmMessages,
+          model: currentConversation.value.model_name,
+          provider: currentConversation.value.model_provider,
+          stream: true
+        })) {
+          fullContent += chunk
+          hasContent = true
+          messages.value[messageIndex] = {
+            ...messages.value[messageIndex],
+            content: fullContent
+          }
+        }
+      } catch (streamError) {
+        console.log('Streaming failed during regeneration, trying non-streaming...')
+        hasContent = false
+      }
+
+      // If streaming failed or no content, try non-streaming
+      if (!hasContent || !fullContent.trim()) {
+        console.log('Using non-streaming for regeneration...')
+        const response = await llmService.sendMessage({
+          messages: llmMessages,
+          model: currentConversation.value.model_name,
+          provider: currentConversation.value.model_provider,
+          stream: false
+        })
+
+        fullContent = response.choices[0].message.content
+        messages.value[messageIndex] = {
+          ...messages.value[messageIndex],
+          content: fullContent,
+          metadata: {
+            model: response.model,
+            tokens: response.usage?.total_tokens,
+            finish_reason: response.choices[0].finish_reason
+          }
+        }
+      }
+
+      // Update the message in the database
+      if (fullContent) {
+        await db.updateMessage(id, { content: fullContent })
+      } else {
+        throw new Error('No response content generated during regeneration')
+      }
+
+    } catch (err: any) {
+      console.error('Regenerate message error:', err)
+      error.value = err.message || 'Failed to regenerate message'
+      throw err
+    } finally {
+      streaming.value = false
+    }
+  }
+
   async function deleteMessage(id: string) {
     try {
       await db.deleteMessage(id)
@@ -282,8 +613,11 @@ export const useChatStore = defineStore('chat', () => {
     createConversation,
     selectConversation,
     updateConversationTitle,
+    duplicateConversation,
     deleteConversation,
     sendMessage,
+    editMessage,
+    regenerateMessage,
     deleteMessage,
     clearCurrentConversation,
     clearError

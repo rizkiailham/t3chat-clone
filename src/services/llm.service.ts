@@ -45,6 +45,25 @@ export class LLMService {
           context_length: 200000,
         }
       ]
+    },
+    {
+      id: 'google',
+      name: 'Google',
+      requiresApiKey: true,
+      models: [
+        {
+          id: 'gemini-2.0-flash',
+          name: 'Gemini 2.0 Flash',
+          description: 'Latest and fastest Gemini model',
+          context_length: 1000000,
+        },
+        {
+          id: 'gemini-1.5-pro',
+          name: 'Gemini 1.5 Pro',
+          description: 'Most capable Gemini model',
+          context_length: 2000000,
+        }
+      ]
     }
   ]
 
@@ -67,18 +86,50 @@ export class LLMService {
     // Check if we're in demo mode (no API keys configured)
     const openaiKey = import.meta.env.VITE_OPENAI_API_KEY
     const anthropicKey = import.meta.env.VITE_ANTHROPIC_API_KEY
+    const googleKey = import.meta.env.VITE_GOOGLE_API_KEY
 
-    if (!openaiKey && !anthropicKey) {
+    console.log('API Keys available:', {
+      openai: !!openaiKey,
+      anthropic: !!anthropicKey,
+      google: !!googleKey
+    })
+
+    // If no API keys are configured, use demo mode
+    if (!openaiKey && !anthropicKey && !googleKey) {
+      console.log('No API keys found, using demo mode')
       return this.sendDemoMessage(request)
     }
 
-    switch (provider) {
-      case 'openai':
-        return this.sendOpenAIMessage({ model, messages, stream, temperature, max_tokens })
-      case 'anthropic':
-        return this.sendAnthropicMessage({ model, messages, stream, temperature, max_tokens })
-      default:
-        throw new Error(`Unsupported provider: ${provider}`)
+    try {
+      console.log(`Attempting to send message via ${provider}`)
+
+      switch (provider) {
+        case 'openai':
+          if (!openaiKey) {
+            console.log('OpenAI key not available, falling back to demo')
+            return this.sendDemoMessage(request)
+          }
+          return this.sendOpenAIMessage({ model, messages, stream, temperature, max_tokens })
+        case 'anthropic':
+          if (!anthropicKey) {
+            console.log('Anthropic key not available, falling back to demo')
+            return this.sendDemoMessage(request)
+          }
+          return this.sendAnthropicMessage({ model, messages, stream, temperature, max_tokens })
+        case 'google':
+          if (!googleKey) {
+            console.log('Google key not available, falling back to demo')
+            return this.sendDemoMessage(request)
+          }
+          return this.sendGoogleMessage({ model, messages, stream, temperature, max_tokens })
+        default:
+          console.log(`Unknown provider ${provider}, using demo mode`)
+          return this.sendDemoMessage(request)
+      }
+    } catch (error) {
+      console.error(`Error with ${provider} provider:`, error)
+      console.log('Falling back to demo mode due to error')
+      return this.sendDemoMessage(request)
     }
   }
 
@@ -88,21 +139,52 @@ export class LLMService {
     // Check if we're in demo mode (no API keys configured)
     const openaiKey = import.meta.env.VITE_OPENAI_API_KEY
     const anthropicKey = import.meta.env.VITE_ANTHROPIC_API_KEY
+    const googleKey = import.meta.env.VITE_GOOGLE_API_KEY
 
-    if (!openaiKey && !anthropicKey) {
+    console.log(`Starting stream for ${provider}`)
+
+    // If no API keys are configured, use demo mode
+    if (!openaiKey && !anthropicKey && !googleKey) {
+      console.log('No API keys found, using demo streaming')
       yield* this.streamDemoMessage(request)
       return
     }
 
-    switch (provider) {
-      case 'openai':
-        yield* this.streamOpenAIMessage({ model, messages, temperature, max_tokens })
-        break
-      case 'anthropic':
-        yield* this.streamAnthropicMessage({ model, messages, temperature, max_tokens })
-        break
-      default:
-        throw new Error(`Unsupported provider: ${provider}`)
+    try {
+      switch (provider) {
+        case 'openai':
+          if (!openaiKey) {
+            console.log('OpenAI key not available, falling back to demo streaming')
+            yield* this.streamDemoMessage(request)
+            return
+          }
+          yield* this.streamOpenAIMessage({ model, messages, temperature, max_tokens })
+          break
+        case 'anthropic':
+          if (!anthropicKey) {
+            console.log('Anthropic key not available, falling back to demo streaming')
+            yield* this.streamDemoMessage(request)
+            return
+          }
+          yield* this.streamAnthropicMessage({ model, messages, temperature, max_tokens })
+          break
+        case 'google':
+          if (!googleKey) {
+            console.log('Google key not available, falling back to demo streaming')
+            yield* this.streamDemoMessage(request)
+            return
+          }
+          yield* this.streamGoogleMessage({ model, messages, temperature, max_tokens })
+          break
+        default:
+          console.log(`Unknown provider ${provider}, using demo streaming`)
+          yield* this.streamDemoMessage(request)
+          break
+      }
+    } catch (error) {
+      console.error(`Streaming error with ${provider}:`, error)
+      console.log('Falling back to demo streaming due to error')
+      yield* this.streamDemoMessage(request)
     }
   }
 
@@ -345,7 +427,9 @@ export class LLMService {
   // Demo mode functions for when no API keys are configured
   private async sendDemoMessage(request: ChatRequest): Promise<ChatResponse> {
     const lastMessage = request.messages[request.messages.length - 1]
-    const demoResponse = this.generateDemoResponse(lastMessage.content)
+    const demoResponse = this.generateDemoResponse(lastMessage.content, request.provider)
+
+    console.log(`Demo response generated for ${request.provider}:`, demoResponse.substring(0, 100) + '...')
 
     return {
       id: 'demo-' + Date.now(),
@@ -370,7 +454,9 @@ export class LLMService {
 
   private async *streamDemoMessage(request: ChatRequest): AsyncGenerator<string, void, unknown> {
     const lastMessage = request.messages[request.messages.length - 1]
-    const demoResponse = this.generateDemoResponse(lastMessage.content)
+    const demoResponse = this.generateDemoResponse(lastMessage.content, request.provider)
+
+    console.log(`Demo streaming started for ${request.provider}`)
 
     // Simulate streaming by yielding chunks
     const words = demoResponse.split(' ')
@@ -378,21 +464,212 @@ export class LLMService {
       await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 100))
       yield words[i] + (i < words.length - 1 ? ' ' : '')
     }
+
+    console.log(`Demo streaming completed for ${request.provider}`)
   }
 
-  private generateDemoResponse(userMessage: string): string {
-    const responses = [
-      `I understand you're asking about "${userMessage}". This is a demo response since no API keys are configured. To get real AI responses, please add your OpenAI or Anthropic API key to the .env file.`,
+  private generateDemoResponse(userMessage: string, provider?: string): string {
+    const providerSpecific = {
+      openai: [
+        `🤖 **GPT Demo Response**: You asked about "${userMessage}". This is a simulated GPT response. To get real OpenAI responses, add your VITE_OPENAI_API_KEY to the .env file.`,
+        `🧠 **OpenAI Simulation**: Regarding "${userMessage}" - I'd provide a detailed analysis if this were the real GPT model. Configure your OpenAI API key to unlock actual AI conversations!`,
+        `⚡ **GPT-4 Demo**: "${userMessage}" is an interesting topic! This is a placeholder response. Add your OpenAI API key to experience the real power of GPT models.`
+      ],
+      anthropic: [
+        `🎭 **Claude Demo Response**: You mentioned "${userMessage}". This is a simulated Claude response. To chat with the real Claude, add your VITE_ANTHROPIC_API_KEY to the .env file.`,
+        `🤔 **Anthropic Simulation**: About "${userMessage}" - I'd give you a thoughtful, nuanced response if this were the actual Claude model. Configure your Anthropic API key for real conversations!`,
+        `📚 **Claude Demo**: "${userMessage}" deserves a proper response! This is just a demo. Add your Anthropic API key to unlock Claude's full capabilities.`
+      ],
+      google: [
+        `🌟 **Gemini Demo Response**: You asked about "${userMessage}". This is a simulated Gemini response. To get real Google AI responses, add your VITE_GOOGLE_API_KEY to the .env file.`,
+        `🚀 **Google AI Simulation**: Regarding "${userMessage}" - I'd provide multimodal insights if this were the real Gemini model. Configure your Google API key for actual AI conversations!`,
+        `💎 **Gemini Demo**: "${userMessage}" is fascinating! This is a placeholder response. Add your Google API key to experience Gemini's advanced capabilities.`
+      ]
+    }
 
-      `Thanks for your message: "${userMessage}". I'm currently running in demo mode. To enable real AI conversations, please configure your API keys in the environment variables.`,
-
-      `You said: "${userMessage}". This is a simulated response. For actual AI-powered conversations, please set up your API credentials in the .env file.`,
-
-      `Regarding "${userMessage}" - I'd love to give you a proper response! However, I'm in demo mode right now. Add your API keys to unlock the full chat experience.`,
-
-      `I see you're interested in "${userMessage}". This is a placeholder response. Configure your OpenAI or Anthropic API key to start real conversations with AI models.`
+    const genericResponses = [
+      `🤖 **Demo Mode**: You asked about "${userMessage}". This is a simulated AI response. To get real AI conversations, please configure your API keys in the .env file.`,
+      `💭 **AI Simulation**: Thanks for your message about "${userMessage}". I'm currently in demo mode. Add your API keys to unlock real AI-powered conversations!`,
+      `🎯 **Demo Response**: "${userMessage}" is an interesting topic! This is a placeholder. Configure your API credentials to start real conversations with AI models.`,
+      `⭐ **Test Mode**: Regarding "${userMessage}" - I'd love to give you a proper response! Add your API keys to unlock the full chat experience.`,
+      `🔧 **Demo Chat**: I see you're interested in "${userMessage}". This is a demo response. Configure your API keys to start real AI conversations.`
     ]
 
+    const responses = provider && providerSpecific[provider as keyof typeof providerSpecific]
+      ? providerSpecific[provider as keyof typeof providerSpecific]
+      : genericResponses
+
     return responses[Math.floor(Math.random() * responses.length)]
+  }
+
+  // Google/Gemini API implementation
+  private async sendGoogleMessage(params: any): Promise<ChatResponse> {
+    const apiKey = import.meta.env.VITE_GOOGLE_API_KEY
+    if (!apiKey) {
+      throw new Error('Google API key not configured. Please add VITE_GOOGLE_API_KEY to your .env file.')
+    }
+
+    console.log('Sending Google/Gemini request:', { model: params.model, messageCount: params.messages.length })
+
+    try {
+      // Convert messages to Gemini format
+      const contents = this.convertToGeminiFormat(params.messages)
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${params.model}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents,
+          generationConfig: {
+            temperature: params.temperature || 0.7,
+            maxOutputTokens: params.max_tokens || 4000,
+          }
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.text()
+        console.error('Google API error:', response.status, errorData)
+        throw new Error(`Google API error (${response.status}): ${errorData}`)
+      }
+
+      const result = await response.json()
+      console.log('Google response received:', result)
+
+      // Convert to OpenAI format
+      return {
+        id: 'google-' + Date.now(),
+        object: 'chat.completion',
+        created: Math.floor(Date.now() / 1000),
+        model: params.model,
+        choices: [{
+          index: 0,
+          message: {
+            role: 'assistant',
+            content: result.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated'
+          },
+          finish_reason: 'stop'
+        }],
+        usage: {
+          prompt_tokens: result.usageMetadata?.promptTokenCount || 0,
+          completion_tokens: result.usageMetadata?.candidatesTokenCount || 0,
+          total_tokens: result.usageMetadata?.totalTokenCount || 0
+        }
+      }
+    } catch (error) {
+      console.error('Google request failed:', error)
+      throw error
+    }
+  }
+
+  private async *streamGoogleMessage(params: any): AsyncGenerator<string, void, unknown> {
+    const apiKey = import.meta.env.VITE_GOOGLE_API_KEY
+    if (!apiKey) {
+      throw new Error('Google API key not configured. Please add VITE_GOOGLE_API_KEY to your .env file.')
+    }
+
+    console.log('Starting Google/Gemini stream:', { model: params.model, messageCount: params.messages.length })
+
+    try {
+      // Convert messages to Gemini format
+      const contents = this.convertToGeminiFormat(params.messages)
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${params.model}:streamGenerateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents,
+          generationConfig: {
+            temperature: params.temperature || 0.7,
+            maxOutputTokens: params.max_tokens || 4000,
+          }
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.text()
+        console.error('Google streaming error:', response.status, errorData)
+
+        // If streaming fails (503 overloaded), fallback to non-streaming
+        if (response.status === 503) {
+          console.log('Streaming overloaded, falling back to non-streaming...')
+          const nonStreamResponse = await this.sendGoogleMessage(params)
+          const content = nonStreamResponse.choices[0].message.content
+
+          // Simulate streaming by yielding the content in chunks
+          const words = content.split(' ')
+          for (let i = 0; i < words.length; i++) {
+            await new Promise(resolve => setTimeout(resolve, 30))
+            yield words[i] + (i < words.length - 1 ? ' ' : '')
+          }
+          return
+        }
+
+        throw new Error(`Google API error (${response.status}): ${errorData}`)
+      }
+
+      const reader = response.body?.getReader()
+      if (!reader) throw new Error('No response body')
+
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || ''
+
+          for (const line of lines) {
+            if (line.trim() && line.startsWith('data: ')) {
+              const data = line.slice(6)
+
+              try {
+                const parsed = JSON.parse(data)
+                const content = parsed.candidates?.[0]?.content?.parts?.[0]?.text
+                if (content) {
+                  yield content
+                }
+              } catch (e) {
+                console.warn('Failed to parse Google streaming data:', data)
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock()
+      }
+    } catch (error) {
+      console.error('Google streaming failed:', error)
+      throw error
+    }
+  }
+
+  private convertToGeminiFormat(messages: any[]): any[] {
+    const contents = []
+
+    for (const message of messages) {
+      if (message.role === 'system') {
+        // Gemini doesn't have system role, so we'll add it as user context
+        contents.push({
+          role: 'user',
+          parts: [{ text: `System: ${message.content}` }]
+        })
+      } else {
+        contents.push({
+          role: message.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: message.content }]
+        })
+      }
+    }
+
+    return contents
   }
 }
