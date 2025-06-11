@@ -1,5 +1,5 @@
 <template>
-  <div class="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+  <div class="p-6 glass border-t border-white/10 dark:border-gray-700/50 backdrop-blur-xl">
     <div class="max-w-4xl mx-auto">
       <div class="relative">
         <!-- Text Area -->
@@ -10,8 +10,8 @@
           @input="adjustHeight"
           :disabled="disabled"
           placeholder="Type your message... (Shift+Enter for new line, Enter to send)"
-          class="w-full resize-none rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-3 pr-12 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-          :class="{ 'min-h-[44px]': true }"
+          class="w-full resize-none rounded-2xl border border-gray-200/50 dark:border-gray-600/50 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm px-6 py-4 pr-16 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
+          :class="{ 'min-h-[56px]': true }"
           rows="1"
         ></textarea>
 
@@ -19,35 +19,39 @@
         <button
           @click="sendMessage"
           :disabled="!canSend"
-          class="absolute right-2 bottom-2 p-2 rounded-md transition-colors"
-          :class="canSend 
-            ? 'text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20' 
-            : 'text-gray-400 cursor-not-allowed'"
+          class="absolute right-3 bottom-3 p-3 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95"
+          :class="canSend
+            ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-blue-800'
+            : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'"
         >
           <PaperAirplaneIcon class="w-5 h-5" />
         </button>
       </div>
 
       <!-- Character count and shortcuts -->
-      <div class="mt-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-        <div class="flex items-center space-x-4">
-          <span>{{ message.length }}/4000</span>
-          <span class="hidden sm:inline">Shift+Enter for new line</span>
+      <div class="mt-4 flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+        <div class="flex items-center space-x-6">
+          <span class="font-medium" :class="{ 'text-red-500': message.length > 3800 }">
+            {{ message.length }}/4000
+          </span>
+          <span class="hidden sm:inline text-xs opacity-75">
+            Shift+Enter for new line • Enter to send
+          </span>
         </div>
-        
+
         <div class="flex items-center space-x-2">
           <!-- Attachment button (future feature) -->
           <button
-            class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors opacity-50 cursor-not-allowed"
+            class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 opacity-50 cursor-not-allowed"
             title="Attachments (coming soon)"
             disabled
           >
             <PaperClipIcon class="w-4 h-4" />
           </button>
-          
+
           <!-- Voice input button (future feature) -->
           <button
-            class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors opacity-50 cursor-not-allowed"
+            class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 opacity-50 cursor-not-allowed"
             title="Voice input (coming soon)"
             disabled
           >

@@ -20,27 +20,27 @@
     </div>
 
     <!-- Conversations list -->
-    <div v-else class="p-2">
-      <div class="space-y-1">
+    <div v-else class="p-3">
+      <div class="space-y-2">
         <div
           v-for="conversation in chatStore.conversations"
           :key="conversation.id"
           @click="selectConversation(conversation)"
-          class="group relative flex items-center rounded-lg cursor-pointer transition-colors"
+          class="group relative flex items-center rounded-xl cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
           :class="[
             isSelected(conversation)
-              ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
-              : 'hover:bg-gray-50 dark:hover:bg-gray-700',
-            collapsed ? 'p-2 justify-center' : 'p-3'
+              ? 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 border border-blue-200/50 dark:border-blue-700/50 shadow-lg'
+              : 'hover:bg-white/50 dark:hover:bg-gray-700/50 hover:shadow-md',
+            collapsed ? 'p-3 justify-center' : 'p-4'
           ]"
         >
           <!-- Collapsed state - show only avatar/icon -->
           <div v-if="collapsed" class="flex items-center justify-center">
             <div
-              class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium"
+              class="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shadow-lg transition-all duration-200 group-hover:scale-110"
               :class="isSelected(conversation)
-                ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300'
-                : 'bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300'"
+                ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white ring-2 ring-blue-200 dark:ring-blue-800'
+                : 'bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-600 dark:to-gray-700 text-gray-700 dark:text-gray-300'"
               :title="conversation.title"
             >
               {{ conversation.title.charAt(0).toUpperCase() }}
@@ -49,9 +49,9 @@
 
           <!-- Expanded state - show full content -->
           <div v-else class="flex-1 min-w-0">
-            <div class="flex items-center justify-between">
+            <div class="flex items-start justify-between mb-2">
               <h3
-                class="text-sm font-medium truncate"
+                class="text-sm font-semibold truncate leading-tight"
                 :class="isSelected(conversation)
                   ? 'text-blue-900 dark:text-blue-100'
                   : 'text-gray-900 dark:text-white'"
@@ -59,7 +59,7 @@
                 {{ conversation.title }}
               </h3>
               <span
-                class="text-xs ml-2 flex-shrink-0"
+                class="text-xs ml-3 flex-shrink-0 font-medium"
                 :class="isSelected(conversation)
                   ? 'text-blue-600 dark:text-blue-400'
                   : 'text-gray-500 dark:text-gray-400'"
@@ -68,17 +68,17 @@
               </span>
             </div>
 
-            <div class="flex items-center mt-1 space-x-2">
+            <div class="flex items-center space-x-2">
               <span
-                class="text-xs px-2 py-0.5 rounded-full"
+                class="inline-flex items-center text-xs px-2.5 py-1 rounded-full font-medium transition-all duration-200"
                 :class="isSelected(conversation)
-                  ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300'
-                  : 'bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300'"
+                  ? 'bg-blue-100 dark:bg-blue-800/50 text-blue-700 dark:text-blue-300 ring-1 ring-blue-200 dark:ring-blue-700'
+                  : 'bg-gray-100 dark:bg-gray-600/50 text-gray-600 dark:text-gray-300'"
               >
                 {{ conversation.model_provider }}
               </span>
               <span
-                class="text-xs truncate"
+                class="text-xs truncate font-medium"
                 :class="isSelected(conversation)
                   ? 'text-blue-600 dark:text-blue-400'
                   : 'text-gray-500 dark:text-gray-400'"
@@ -89,10 +89,10 @@
           </div>
 
           <!-- Actions menu (only in expanded state) -->
-          <div v-if="!collapsed" class="opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+          <div v-if="!collapsed" class="opacity-0 group-hover:opacity-100 transition-all duration-200 ml-3">
             <button
               @click.stop="showMenu(conversation, $event)"
-              class="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              class="p-2 rounded-lg hover:bg-gray-200/50 dark:hover:bg-gray-600/50 transition-all duration-200 hover:scale-110 active:scale-95"
             >
               <EllipsisVerticalIcon class="w-4 h-4 text-gray-500 dark:text-gray-400" />
             </button>
@@ -105,30 +105,30 @@
     <div
       v-if="menuConversation"
       ref="menuRef"
-      class="fixed z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 min-w-[160px]"
+      class="fixed z-50 glass border border-white/20 dark:border-gray-700/50 rounded-xl shadow-xl backdrop-blur-xl py-2 min-w-[180px] animate-scale-in"
       :style="menuPosition"
     >
       <button
         @click="renameConversation"
-        class="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+        class="w-full px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-gray-700/50 transition-all duration-200 flex items-center space-x-3"
       >
-        <PencilIcon class="w-4 h-4 inline mr-2" />
-        Rename
+        <PencilIcon class="w-4 h-4" />
+        <span>Rename</span>
       </button>
       <button
         @click="duplicateConversation"
-        class="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+        class="w-full px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-gray-700/50 transition-all duration-200 flex items-center space-x-3"
       >
-        <DocumentDuplicateIcon class="w-4 h-4 inline mr-2" />
-        Duplicate
+        <DocumentDuplicateIcon class="w-4 h-4" />
+        <span>Duplicate</span>
       </button>
-      <hr class="my-1 border-gray-200 dark:border-gray-700">
+      <hr class="my-2 border-gray-200/50 dark:border-gray-700/50">
       <button
         @click="deleteConversation"
-        class="w-full px-3 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+        class="w-full px-4 py-3 text-left text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50/50 dark:hover:bg-red-900/20 transition-all duration-200 flex items-center space-x-3"
       >
-        <TrashIcon class="w-4 h-4 inline mr-2" />
-        Delete
+        <TrashIcon class="w-4 h-4" />
+        <span>Delete</span>
       </button>
     </div>
   </div>

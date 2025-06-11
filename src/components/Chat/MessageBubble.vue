@@ -1,49 +1,50 @@
 <template>
-  <div class="flex items-start space-x-3" :class="{ 'flex-row-reverse space-x-reverse': isUser }">
+  <div class="flex items-start space-x-4 group" :class="{ 'flex-row-reverse space-x-reverse': isUser }">
     <!-- Avatar -->
     <div class="flex-shrink-0">
-      <div v-if="isUser" class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-        <span class="text-white text-sm font-medium">{{ userInitial }}</span>
+      <div v-if="isUser" class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-blue-100 dark:ring-blue-900/30">
+        <span class="text-white text-sm font-bold">{{ userInitial }}</span>
       </div>
-      <div v-else class="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center">
-        <span class="text-white text-sm font-medium">AI</span>
+      <div v-else class="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-purple-100 dark:ring-purple-900/30">
+        <span class="text-white text-sm font-bold">AI</span>
       </div>
     </div>
 
     <!-- Message Content -->
-    <div class="flex-1 max-w-3xl">
+    <div class="flex-1 max-w-4xl">
       <div
-        class="rounded-lg p-4 shadow-sm"
+        class="rounded-2xl p-5 shadow-lg backdrop-blur-sm transition-all duration-200 hover:shadow-xl"
         :class="messageClasses"
       >
         <!-- Edit mode -->
-        <div v-if="isEditing">
+        <div v-if="isEditing" class="space-y-4">
           <textarea
             ref="editTextarea"
             v-model="editContent"
             @keydown="handleEditKeydown"
-            class="w-full resize-none bg-transparent border-none outline-none text-inherit"
+            class="w-full resize-none bg-transparent border-none outline-none text-inherit placeholder-current/50 focus:ring-0"
             :class="{ 'text-white': isUser }"
-            rows="1"
+            placeholder="Edit your message..."
+            rows="3"
           ></textarea>
-          <div class="flex items-center justify-end space-x-2 mt-2">
+          <div class="flex items-center justify-end space-x-3 pt-2 border-t border-current/10">
             <button
               @click="cancelEdit"
-              class="px-3 py-1 text-xs rounded border"
+              class="px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
               :class="isUser
-                ? 'border-white/30 text-white/80 hover:bg-white/10'
-                : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'"
+                ? 'border border-white/30 text-white/80 hover:bg-white/10 hover:border-white/50'
+                : 'border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:border-gray-400 dark:hover:border-gray-500'"
             >
               Cancel
             </button>
             <button
               @click="saveEdit"
-              class="px-3 py-1 text-xs rounded"
+              class="px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
               :class="isUser
-                ? 'bg-white/20 text-white hover:bg-white/30'
-                : 'bg-blue-600 text-white hover:bg-blue-700'"
+                ? 'bg-white/20 text-white hover:bg-white/30 shadow-lg'
+                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl'"
             >
-              Save
+              Save Changes
             </button>
           </div>
         </div>
@@ -74,35 +75,41 @@
         </div>
       </div>
 
-      <!-- Message metadata -->
-      <div class="mt-1 flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400" :class="{ 'justify-end': isUser }">
-        <span>{{ formatTime(message.created_at) }}</span>
-        <span v-if="message.metadata?.tokens" class="hidden sm:inline">
-          • {{ message.metadata.tokens }} tokens
-        </span>
-        <button
-          v-if="isUser"
-          @click="startEdit"
-          class="hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-          title="Edit message"
-        >
-          <PencilIcon class="w-3 h-3" />
-        </button>
-        <button
-          @click="copyMessage"
-          class="hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-          title="Copy message"
-        >
-          <ClipboardIcon class="w-3 h-3" />
-        </button>
-        <button
-          v-if="!isUser"
-          @click="regenerateMessage"
-          class="hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-          title="Regenerate response"
-        >
-          <ArrowPathIcon class="w-3 h-3" />
-        </button>
+      <!-- Message metadata and actions -->
+      <div class="mt-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+        <div class="flex items-center space-x-2">
+          <span class="font-medium">{{ formatTime(message.created_at) }}</span>
+          <span v-if="message.metadata?.tokens" class="hidden sm:inline opacity-75">
+            • {{ message.metadata.tokens }} tokens
+          </span>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+          <button
+            v-if="isUser"
+            @click="startEdit"
+            class="p-1.5 text-gray-400 dark:text-gray-500 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
+            title="Edit message"
+          >
+            <PencilIcon class="w-3.5 h-3.5" />
+          </button>
+          <button
+            @click="copyMessage"
+            class="p-1.5 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
+            title="Copy message"
+          >
+            <ClipboardIcon class="w-3.5 h-3.5" />
+          </button>
+          <button
+            v-if="!isUser"
+            @click="regenerateMessage"
+            class="p-1.5 text-gray-400 dark:text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
+            title="Regenerate response"
+          >
+            <ArrowPathIcon class="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -167,9 +174,9 @@ onUnmounted(() => {
 
 const messageClasses = computed(() => {
   if (isUser.value) {
-    return 'bg-blue-600 text-white ml-auto'
+    return 'bg-gradient-to-br from-blue-600 to-blue-700 text-white ml-auto border border-blue-500/20 shadow-lg shadow-blue-500/25'
   }
-  return 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600'
+  return 'glass border border-white/20 dark:border-gray-700/50 text-gray-900 dark:text-white shadow-lg'
 })
 
 const proseClasses = computed(() => {
@@ -293,55 +300,65 @@ function regenerateMessage() {
   color: inherit;
 }
 
-/* Code block styling */
+/* Modern Code block styling */
 :deep(.code-block-container) {
-  margin: 1rem 0;
-  border-radius: 0.5rem;
+  margin: 1.5rem 0;
+  border-radius: 1rem;
   overflow: hidden;
-  background: #1a1a1a;
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
   border: 1px solid #374151;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+:deep(.code-block-container:hover) {
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4);
+  transform: translateY(-1px);
 }
 
 :deep(.code-block-header) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem 1rem;
-  background: #2d2d2d;
-  border-bottom: 1px solid #374151;
-  max-height: 20px;
+  padding: 0.75rem 1.25rem;
+  background: linear-gradient(135deg, #2d2d2d 0%, #3a3a3a 100%);
+  border-bottom: 1px solid #4a5568;
 }
 
 :deep(.code-language) {
   font-size: 0.75rem;
-  color: #9ca3af;
+  color: #a0aec0;
   text-transform: uppercase;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.05em;
 }
 
 :deep(.copy-code-btn) {
-  padding: 0.25rem;
+  padding: 0.5rem;
   color: #9ca3af;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.05);
   border: none;
-  border-radius: 0.25rem;
+  border-radius: 0.5rem;
   cursor: pointer;
-  transition: color 0.2s;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
 }
 
 :deep(.copy-code-btn:hover) {
   color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.05);
 }
 
 :deep(.code-block) {
   margin: 0;
-  padding: 1rem;
+  padding: 1.5rem;
   background: #1a1a1a;
   overflow-x: auto;
-  font-family: 'Fira Code', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
+  font-family: var(--font-family-mono);
   font-size: 0.875rem;
-  line-height: 1.5;
-  color: #e5e7eb; /* Default text color */
+  line-height: 1.6;
+  color: #e5e7eb;
 }
 
 /* Syntax highlighting colors - ensure inline styles work */
@@ -356,10 +373,18 @@ function regenerateMessage() {
 }
 
 :deep(.inline-code) {
-  background: rgba(156, 163, 175, 0.1);
-  padding: 0.125rem 0.25rem;
-  border-radius: 0.25rem;
-  font-family: 'Fira Code', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
+  background: rgba(156, 163, 175, 0.15);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  font-family: var(--font-family-mono);
   font-size: 0.875em;
+  font-weight: 500;
+  border: 1px solid rgba(156, 163, 175, 0.2);
+  transition: all 0.2s ease;
+}
+
+:deep(.inline-code:hover) {
+  background: rgba(156, 163, 175, 0.2);
+  border-color: rgba(156, 163, 175, 0.3);
 }
 </style>
