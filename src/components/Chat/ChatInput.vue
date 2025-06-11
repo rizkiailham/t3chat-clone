@@ -1,5 +1,5 @@
 <template>
-  <div class="p-6 glass border-t border-white/10 dark:border-gray-700/50 backdrop-blur-xl">
+  <div class="p-4 lg:p-6 glass border-t border-white/10 dark:border-gray-700/50 backdrop-blur-xl flex-shrink-0">
     <div class="max-w-4xl mx-auto">
       <div class="relative">
         <!-- Text Area -->
@@ -100,20 +100,53 @@ onMounted(() => {
 })
 
 function handleKeydown(event: KeyboardEvent) {
-  if (event.key === 'Enter' && !event.shiftKey) {
-    event.preventDefault()
-    sendMessage()
+  try {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      console.log('🚀 Enter key pressed, sending message')
+      event.preventDefault()
+      sendMessage()
+    }
+  } catch (error) {
+    console.error('❌ Error in handleKeydown:', error)
   }
 }
 
 function sendMessage() {
-  if (!canSend.value) return
+  try {
+    console.log('🚀 Send message triggered')
 
-  const messageText = message.value.trim()
-  if (messageText) {
+    if (!canSend.value) {
+      console.warn('❌ Cannot send: canSend is false')
+      return
+    }
+
+    const messageText = message.value.trim()
+    if (!messageText) {
+      console.warn('❌ Cannot send: message is empty')
+      return
+    }
+
+    console.log('✅ Sending message:', messageText)
+
+    // Emit the message
     emit('send', messageText)
+
+    // Clear the input
     message.value = ''
     resetHeight()
+
+    // Focus back to textarea for better UX
+    nextTick(() => {
+      if (textareaRef.value) {
+        textareaRef.value.focus()
+      }
+    })
+
+    console.log('✅ Message sent successfully')
+  } catch (error) {
+    console.error('❌ Error sending message:', error)
+    // Show user-friendly error
+    alert('Failed to send message. Please try again.')
   }
 }
 

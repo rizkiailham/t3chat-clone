@@ -2,13 +2,13 @@
   <div class="fixed inset-0 z-50 overflow-y-auto">
     <div class="flex min-h-screen items-center justify-center p-4">
       <!-- Backdrop -->
-      <div 
-        class="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+      <div
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm transition-all duration-300"
         @click="$emit('close')"
       ></div>
 
       <!-- Modal -->
-      <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
+      <div class="relative glass rounded-2xl shadow-2xl max-w-md w-full border border-white/20 dark:border-gray-700/50 backdrop-blur-xl animate-scale-in">
         <!-- Header -->
         <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <div class="flex items-center justify-between">
@@ -190,12 +190,43 @@ function onProviderChange() {
 }
 
 function createChat() {
-  if (!canCreate.value) return
-  
-  emit('create', {
-    title: form.value.title.trim(),
-    provider: form.value.provider,
-    model: form.value.model
-  })
+  try {
+    console.log('🚀 Creating new chat with form data:', form.value)
+
+    if (!canCreate.value) {
+      console.warn('❌ Cannot create chat: form validation failed')
+      return
+    }
+
+    const chatData = {
+      title: form.value.title.trim(),
+      provider: form.value.provider,
+      model: form.value.model
+    }
+
+    console.log('✅ Emitting create event with data:', chatData)
+    emit('create', chatData)
+
+  } catch (error) {
+    console.error('❌ Error creating chat:', error)
+    alert('Failed to create chat. Please try again.')
+  }
 }
 </script>
+
+<style scoped>
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.2s ease-out;
+}
+</style>

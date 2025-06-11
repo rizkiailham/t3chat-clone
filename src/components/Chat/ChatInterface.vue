@@ -1,29 +1,29 @@
 <template>
-  <div class="flex h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+  <div class="flex h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 overflow-hidden">
     <!-- Sidebar -->
     <div
-      class="glass border-r border-white/20 dark:border-gray-700/50 flex flex-col transition-all duration-500 ease-out fixed lg:relative z-40 h-full backdrop-blur-xl"
+      class="glass border-r border-white/20 dark:border-gray-700/50 flex flex-col transition-all duration-500 ease-out backdrop-blur-xl"
       :class="{
-        'w-80 translate-x-0': showSidebar,
-        'w-0 -translate-x-full lg:translate-x-0 lg:w-16': !showSidebar,
+        'w-80 translate-x-0 fixed lg:relative z-40 h-full': showSidebar,
+        'w-0 -translate-x-full lg:translate-x-0 lg:w-16 lg:relative': !showSidebar,
         'lg:w-80': showSidebar && !isMobile,
         'lg:w-16': !showSidebar && !isMobile
       }"
     >
       <!-- Header -->
-      <div class="p-6 border-b border-white/10 dark:border-gray-700/50">
+      <div class="p-4 lg:p-6 border-b border-white/10 dark:border-gray-700/50">
         <div class="flex items-center justify-between">
           <h1
             v-if="showSidebar || isMobile"
-            class="text-xl font-bold text-gradient bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
+            class="text-lg lg:text-xl font-bold text-gradient bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent truncate"
           >
             T3 Chat Clone
           </h1>
-          <div class="flex items-center space-x-2">
+          <div class="flex items-center space-x-2 flex-shrink-0">
             <button
               v-if="showSidebar || isMobile"
               @click="showNewChatModal = true"
-              class="p-2.5 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/50 dark:hover:bg-gray-700/50 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 group"
+              class="p-2 lg:p-2.5 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/50 dark:hover:bg-gray-700/50 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 group"
               title="New Chat"
             >
               <PlusIcon class="w-5 h-5 group-hover:rotate-90 transition-transform duration-200" />
@@ -31,7 +31,7 @@
             <button
               v-if="!isMobile"
               @click="showSidebar = !showSidebar"
-              class="p-2.5 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/50 dark:hover:bg-gray-700/50 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95"
+              class="p-2 lg:p-2.5 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/50 dark:hover:bg-gray-700/50 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95"
               :title="showSidebar ? 'Collapse Sidebar' : 'Expand Sidebar'"
             >
               <ChevronLeftIcon v-if="showSidebar" class="w-5 h-5 transition-transform duration-200" />
@@ -41,13 +41,13 @@
         </div>
 
         <!-- Collapsed state - show only icons -->
-        <div v-if="!showSidebar && !isMobile" class="flex flex-col items-center space-y-3 mt-6">
+        <div v-if="!showSidebar && !isMobile" class="flex flex-col items-center space-y-3 mt-4 lg:mt-6">
           <button
             @click="showNewChatModal = true"
-            class="p-3 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/50 dark:hover:bg-gray-700/50 rounded-xl transition-all duration-200 hover:scale-110 active:scale-95 group"
+            class="p-2.5 lg:p-3 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/50 dark:hover:bg-gray-700/50 rounded-xl transition-all duration-200 hover:scale-110 active:scale-95 group"
             title="New Chat"
           >
-            <PlusIcon class="w-6 h-6 group-hover:rotate-90 transition-transform duration-200" />
+            <PlusIcon class="w-5 h-5 lg:w-6 lg:h-6 group-hover:rotate-90 transition-transform duration-200" />
           </button>
         </div>
       </div>
@@ -59,17 +59,17 @@
       />
 
       <!-- User Menu -->
-      <div class="p-4 border-t border-white/10 dark:border-gray-700/50 mt-auto">
-        <div v-if="showSidebar || isMobile" class="flex items-center space-x-3 p-3 rounded-xl glass-subtle hover:bg-white/20 dark:hover:bg-gray-700/30 transition-all duration-200 group">
-          <div class="relative">
+      <div class="p-3 lg:p-4 border-t border-white/10 dark:border-gray-700/50 mt-auto flex-shrink-0">
+        <div v-if="showSidebar || isMobile" class="flex items-center space-x-3 p-2 lg:p-3 rounded-xl glass-subtle hover:bg-white/20 dark:hover:bg-gray-700/30 transition-all duration-200 group">
+          <div class="relative flex-shrink-0">
             <img
               :src="authStore.user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(authStore.user?.name || 'User')}&background=3b82f6&color=fff`"
               :alt="authStore.user?.name"
-              class="w-10 h-10 rounded-full object-cover ring-2 ring-white/20 dark:ring-gray-600/50 transition-all duration-200 group-hover:ring-blue-400/50"
+              class="w-8 h-8 lg:w-10 lg:h-10 rounded-full object-cover ring-2 ring-white/20 dark:ring-gray-600/50 transition-all duration-200 group-hover:ring-blue-400/50"
               @error="handleAvatarError"
               @load="() => console.log('Avatar loaded:', authStore.user?.avatar_url)"
             >
-            <div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full ring-2 ring-white dark:ring-gray-800"></div>
+            <div class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 lg:w-3 lg:h-3 bg-green-400 rounded-full ring-1 lg:ring-2 ring-white dark:ring-gray-800"></div>
           </div>
           <div class="flex-1 min-w-0">
             <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">
@@ -81,7 +81,7 @@
           </div>
           <button
             @click="handleSignOut"
-            class="p-2 text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
+            class="p-1.5 lg:p-2 text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 flex-shrink-0"
             title="Sign Out"
           >
             <ArrowRightStartOnRectangleIcon class="w-4 h-4" />
@@ -94,12 +94,12 @@
             <img
               :src="authStore.user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(authStore.user?.name || 'User')}&background=3b82f6&color=fff`"
               :alt="authStore.user?.name"
-              class="w-8 h-8 rounded-full object-cover ring-2 ring-white/20 dark:ring-gray-600/50 cursor-pointer hover:ring-blue-400/50 transition-all duration-200"
+              class="w-7 h-7 lg:w-8 lg:h-8 rounded-full object-cover ring-2 ring-white/20 dark:ring-gray-600/50 cursor-pointer hover:ring-blue-400/50 transition-all duration-200"
               @error="handleAvatarError"
               @click="handleSignOut"
               title="Sign Out"
             >
-            <div class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-400 rounded-full ring-1 ring-white dark:ring-gray-800"></div>
+            <div class="absolute -bottom-0.5 -right-0.5 w-2 h-2 lg:w-2.5 lg:h-2.5 bg-green-400 rounded-full ring-1 ring-white dark:ring-gray-800"></div>
           </div>
         </div>
       </div>
@@ -107,15 +107,15 @@
 
     <!-- Overlay for mobile -->
     <div
-      v-if="showSidebar"
+      v-if="showSidebar && isMobile"
       @click="showSidebar = false"
-      class="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 lg:hidden transition-all duration-300"
+      class="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 transition-all duration-300"
     ></div>
 
     <!-- Main Chat Area -->
-    <div class="flex-1 flex flex-col lg:ml-0" :class="{ 'ml-0': !showSidebar }">
+    <div class="flex-1 flex flex-col min-w-0 relative">
       <!-- Chat Header -->
-      <div class="p-6 border-b border-white/10 dark:border-gray-700/50 glass backdrop-blur-xl">
+      <div class="p-4 lg:p-6 border-b border-white/10 dark:border-gray-700/50 glass backdrop-blur-xl flex-shrink-0">
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-4">
             <!-- Mobile menu button -->
@@ -162,8 +162,8 @@
       </div>
 
       <!-- Messages Area -->
-      <div class="flex-1 overflow-hidden relative">
-        <div v-if="!chatStore.currentConversation" class="h-full flex items-center justify-center p-8">
+      <div class="flex-1 overflow-hidden relative min-h-0">
+        <div v-if="!chatStore.currentConversation" class="h-full flex items-center justify-center p-4 lg:p-8">
           <div class="text-center max-w-md mx-auto animate-fade-in">
             <div class="relative mb-8">
               <div class="w-20 h-20 mx-auto bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
@@ -208,7 +208,7 @@
           </div>
 
           <!-- Messages -->
-          <div ref="messagesContainer" class="flex-1 overflow-y-auto p-6 space-y-6">
+          <div ref="messagesContainer" class="flex-1 overflow-y-auto p-4 lg:p-6 space-y-4 lg:space-y-6 min-h-0">
             <MessageBubble
               v-for="message in chatStore.messages"
               :key="message.id"
@@ -299,18 +299,51 @@ watch(() => chatStore.messages.length, async () => {
 
 async function handleSendMessage(content: string) {
   try {
+    console.log('🚀 ChatInterface: Handling send message:', content)
+
+    if (!content || !content.trim()) {
+      console.warn('❌ Empty message content')
+      return
+    }
+
+    if (!chatStore.currentConversation) {
+      console.warn('❌ No current conversation')
+      chatStore.error = 'Please select or create a conversation first'
+      return
+    }
+
+    console.log('✅ Sending message to chat store...')
     await chatStore.sendMessage(content, true)
+    console.log('✅ Message sent successfully')
+
   } catch (error) {
-    console.error('Failed to send message:', error)
+    console.error('❌ Failed to send message:', error)
+    chatStore.error = 'Failed to send message. Please try again.'
   }
 }
 
 async function handleCreateConversation(data: { title: string; provider: string; model: string }) {
   try {
+    console.log('🚀 ChatInterface: Creating conversation with data:', data)
+
+    if (!data.title || !data.provider || !data.model) {
+      console.warn('❌ Invalid conversation data:', data)
+      chatStore.error = 'Please fill in all required fields'
+      return
+    }
+
+    console.log('✅ Creating conversation...')
     await chatStore.createConversation(data.title, data.provider, data.model)
+
+    console.log('✅ Conversation created successfully')
     showNewChatModal.value = false
+
+    // Clear any previous errors
+    chatStore.clearError()
+
   } catch (error) {
-    console.error('Failed to create conversation:', error)
+    console.error('❌ Failed to create conversation:', error)
+    chatStore.error = 'Failed to create conversation. Please try again.'
   }
 }
 
