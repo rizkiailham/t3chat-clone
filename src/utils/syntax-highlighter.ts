@@ -155,13 +155,13 @@ export function formatCodeBlock(content: string): string {
 
       return `
       <div class="gemini-code-container">
-        <div class="gemini-code-header">
-          <div class="w-full gemini-code-info">
+        <div class="gemini-code-header" style="display: flex; justify-content: space-between; align-items: center;  margin-top: 20px">
+          <div class="w-full gemini-code-info" style="display: flex; width: 100%">
             <div class="gemini-code-icon">${languageIcon}</div>
             <span class="gemini-code-language">${detectedLanguage.toUpperCase()}</span>
           </div>
           <button class="gemini-copy-btn" onclick="copyCodeBlock(this)" title="Copy code">
-            <span class="copy-text">Copy 📋</span>
+            <span class="copy-text" style="display: flex; min-width: 70px">Copy 📋</span>
           </button>
         </div>
         <div class="gemini-code-block"> 

@@ -5,6 +5,7 @@ import { axiosDb } from '../services/axios-db'
 import { LLMService } from '../services/llm.service'
 import type { Conversation, Message, ChatState, ChatMessage } from '../types'
 import { useAuthStore } from './auth'
+import router from '../router'
 
 const llmService = new LLMService()
 
@@ -779,6 +780,94 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  // Conversation sharing functions
+  async function shareConversation(id: string) {
+    try {
+      loading.value = true
+      error.value = null
+
+      const sharedConversation = await axiosDb.shareConversation(id)
+
+      // Update the conversation in the list
+      const index = conversations.value.findIndex(c => c.id === id)
+      if (index !== -1) {
+        conversations.value[index] = sharedConversation
+      }
+
+      // Update current conversation if it's the one being shared
+      if (currentConversation.value?.id === id) {
+        currentConversation.value = sharedConversation
+      }
+
+      // Copy share link to clipboard
+      const shareUrl = `${window.location.origin}/share/${sharedConversation.share_id}`
+      await navigator.clipboard.writeText(shareUrl)
+
+      return sharedConversation
+    } catch (err: any) {
+      error.value = err.message || 'Failed to share conversation'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function unshareConversation(id: string) {
+    try {
+      loading.value = true
+      error.value = null
+
+      const unsharedConversation = await axiosDb.unshareConversation(id)
+
+      // Update the conversation in the list
+      const index = conversations.value.findIndex(c => c.id === id)
+      if (index !== -1) {
+        conversations.value[index] = unsharedConversation
+      }
+
+      // Update current conversation if it's the one being unshared
+      if (currentConversation.value?.id === id) {
+        currentConversation.value = unsharedConversation
+      }
+
+      return unsharedConversation
+    } catch (err: any) {
+      error.value = err.message || 'Failed to unshare conversation'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function getSharedConversation(shareId: string) {
+    try {
+      loading.value = true
+      error.value = null
+
+      const { conversation, messages: sharedMessages } = await axiosDb.getSharedConversation(shareId)
+
+      // Set the shared conversation and messages (read-only)
+      currentConversation.value = conversation
+      messages.value = sharedMessages
+
+      return { conversation, messages: sharedMessages }
+    } catch (err: any) {
+      error.value = err.message || 'Failed to load shared conversation'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Navigation helpers
+  function navigateToConversation(conversationId: string) {
+    router.push(`/chat/${conversationId}`)
+  }
+
+  function navigateToSharedConversation(shareId: string) {
+    router.push(`/share/${shareId}`)
+  }
+
   return {
     // State
     conversations,
@@ -805,6 +894,13 @@ export const useChatStore = defineStore('chat', () => {
     deleteMessage,
     clearCurrentConversation,
     clearError,
-    refreshState
+    refreshState,
+
+    // Sharing actions
+    shareConversation,
+    unshareConversation,
+    getSharedConversation,
+    navigateToConversation,
+    navigateToSharedConversation
   }
 })

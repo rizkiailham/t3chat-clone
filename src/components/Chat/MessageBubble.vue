@@ -333,7 +333,7 @@ function regenerateMessage() {
 :deep(.gemini-code-header) {
   margin-top: 20px;
   margin-bottom: -20px;
-  display: flex;
+  display: flex!important;
   justify-content: space-between;
   align-items: center;
   background: #f1f3f4;

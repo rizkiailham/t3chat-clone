@@ -16,6 +16,9 @@ export interface Conversation {
   model_provider: string
   model_name: string
   system_prompt?: string
+  is_shared?: boolean
+  share_id?: string
+  shared_at?: string
 }
 
 export interface Message {

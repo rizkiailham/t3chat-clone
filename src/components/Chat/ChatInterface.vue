@@ -269,7 +269,7 @@
     />
 
     <!-- Debug Panel for Testing -->
-    <!-- <div class=" fixed bottom-4 right-4 z-50">
+    <div class="hidden fixed bottom-4 right-4 z-50">
       <div class="bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded-lg p-3 text-xs space-y-2 max-w-xs">
         <div class="font-semibold text-yellow-800 dark:text-yellow-200">🧪 Debug Panel</div>
         <div class="space-y-1">
@@ -305,7 +305,7 @@
           </button>
         </div>
       </div>
-    </div> -->
+    </div>
   </div>
 </template>
 
@@ -361,6 +361,18 @@ const isMobile = computed(() => {
   return windowWidth.value < 1024;
 });
 
+// Watch for route changes to handle conversation navigation
+watch(() => router.currentRoute.value.params.conversationId, async (newConversationId) => {
+  if (newConversationId && authStore.isAuthenticated) {
+    console.log('🔗 Route changed to conversation:', newConversationId)
+    const conversation = chatStore.conversations.find(c => c.id === newConversationId)
+    if (conversation && conversation.id !== chatStore.currentConversation?.id) {
+      console.log('✅ Selecting conversation from route change')
+      await chatStore.selectConversation(conversation)
+    }
+  }
+});
+
 // Browser visibility and focus handling
 let visibilityChangeHandler: (() => void) | null = null
 let focusHandler: (() => void) | null = null
@@ -378,6 +390,20 @@ onMounted(async () => {
 
   console.log('✅ User authenticated, loading conversations')
   await chatStore.loadConversations()
+
+  // Handle conversation ID from URL
+  const conversationId = router.currentRoute.value.params.conversationId as string
+  if (conversationId) {
+    console.log('🔗 Conversation ID found in URL:', conversationId)
+    const conversation = chatStore.conversations.find(c => c.id === conversationId)
+    if (conversation) {
+      console.log('✅ Found conversation, selecting it')
+      await chatStore.selectConversation(conversation)
+    } else {
+      console.log('❌ Conversation not found, redirecting to home')
+      router.push('/')
+    }
+  }
 
   // Add browser visibility change handler
   visibilityChangeHandler = () => {

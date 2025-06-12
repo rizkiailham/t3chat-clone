@@ -68,23 +68,35 @@
               </span>
             </div>
 
-            <div class="flex items-center space-x-2">
-              <span
-                class="inline-flex items-center text-xs px-2.5 py-1 rounded-full font-medium transition-all duration-200"
-                :class="isSelected(conversation)
-                  ? 'bg-blue-100 dark:bg-blue-800/50 text-blue-700 dark:text-blue-300 ring-1 ring-blue-200 dark:ring-blue-700'
-                  : 'bg-gray-100 dark:bg-gray-600/50 text-gray-600 dark:text-gray-300'"
-              >
-                {{ conversation.model_provider }}
-              </span>
-              <span
-                class="text-xs truncate font-medium"
-                :class="isSelected(conversation)
-                  ? 'text-blue-600 dark:text-blue-400'
-                  : 'text-gray-500 dark:text-gray-400'"
-              >
-                {{ conversation.model_name }}
-              </span>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <span
+                  class="inline-flex items-center text-xs px-2.5 py-1 rounded-full font-medium transition-all duration-200"
+                  :class="isSelected(conversation)
+                    ? 'bg-blue-100 dark:bg-blue-800/50 text-blue-700 dark:text-blue-300 ring-1 ring-blue-200 dark:ring-blue-700'
+                    : 'bg-gray-100 dark:bg-gray-600/50 text-gray-600 dark:text-gray-300'"
+                >
+                  {{ conversation.model_provider }}
+                </span>
+                <span
+                  class="text-xs truncate font-medium"
+                  :class="isSelected(conversation)
+                    ? 'text-blue-600 dark:text-blue-400'
+                    : 'text-gray-500 dark:text-gray-400'"
+                >
+                  {{ conversation.model_name }}
+                </span>
+              </div>
+
+              <!-- Shared indicator -->
+              <div v-if="conversation.is_shared" class="flex items-center">
+                <span
+                  class="inline-flex items-center text-xs px-2 py-1 rounded-full font-medium bg-green-100 dark:bg-green-800/50 text-green-700 dark:text-green-300 ring-1 ring-green-200 dark:ring-green-700"
+                >
+                  <ShareIcon class="w-3 h-3 mr-1" />
+                  Shared
+                </span>
+              </div>
             </div>
           </div>
 
@@ -122,6 +134,34 @@
         <DocumentDuplicateIcon class="w-4 h-4" />
         <span>Duplicate</span>
       </button>
+
+      <!-- Sharing options -->
+      <hr class="my-2 border-gray-200/50 dark:border-gray-700/50">
+      <button
+        v-if="!menuConversation?.is_shared"
+        @click="shareConversation"
+        class="w-full px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-gray-700/50 transition-all duration-200 flex items-center space-x-3"
+      >
+        <ShareIcon class="w-4 h-4" />
+        <span>Share</span>
+      </button>
+      <button
+        v-if="menuConversation?.is_shared"
+        @click="copyShareLink"
+        class="w-full px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-gray-700/50 transition-all duration-200 flex items-center space-x-3"
+      >
+        <LinkIcon class="w-4 h-4" />
+        <span>Copy Link</span>
+      </button>
+      <button
+        v-if="menuConversation?.is_shared"
+        @click="unshareConversation"
+        class="w-full px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-gray-700/50 transition-all duration-200 flex items-center space-x-3"
+      >
+        <EyeSlashIcon class="w-4 h-4" />
+        <span>Unshare</span>
+      </button>
+
       <hr class="my-2 border-gray-200/50 dark:border-gray-700/50">
       <button
         @click="deleteConversation"
@@ -136,12 +176,15 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { 
+import {
   ChatBubbleLeftIcon,
   EllipsisVerticalIcon,
   PencilIcon,
   DocumentDuplicateIcon,
-  TrashIcon
+  TrashIcon,
+  ShareIcon,
+  LinkIcon,
+  EyeSlashIcon
 } from '@heroicons/vue/24/outline'
 import { useChatStore } from '../../stores/chat'
 import type { Conversation } from '../../types'
@@ -215,6 +258,9 @@ async function selectConversation(conversation: Conversation) {
       await chatStore.selectConversation(conversation)
 
       console.log('✅ ConversationList: Conversation selected successfully')
+
+      // Navigate to conversation URL
+      chatStore.navigateToConversation(conversation.id)
 
       // Emit event to close mobile sidebar
       emit('conversationSelected')
@@ -311,7 +357,7 @@ async function duplicateConversation() {
 
 async function deleteConversation() {
   if (!menuConversation.value) return
-  
+
   if (confirm('Are you sure you want to delete this conversation?')) {
     try {
       await chatStore.deleteConversation(menuConversation.value.id)
@@ -319,7 +365,55 @@ async function deleteConversation() {
       console.error('Failed to delete conversation:', error)
     }
   }
-  
+
+  hideMenu()
+}
+
+// Sharing functions
+async function shareConversation() {
+  if (!menuConversation.value) return
+
+  try {
+    const sharedConversation = await chatStore.shareConversation(menuConversation.value.id)
+
+    // Show success message
+    alert(`Conversation shared! Link copied to clipboard.\n\nShare URL: ${window.location.origin}/share/${sharedConversation.share_id}`)
+  } catch (error) {
+    console.error('Failed to share conversation:', error)
+    alert('Failed to share conversation. Please try again.')
+  }
+
+  hideMenu()
+}
+
+async function unshareConversation() {
+  if (!menuConversation.value) return
+
+  if (confirm('Are you sure you want to stop sharing this conversation? The share link will no longer work.')) {
+    try {
+      await chatStore.unshareConversation(menuConversation.value.id)
+      alert('Conversation is no longer shared.')
+    } catch (error) {
+      console.error('Failed to unshare conversation:', error)
+      alert('Failed to unshare conversation. Please try again.')
+    }
+  }
+
+  hideMenu()
+}
+
+async function copyShareLink() {
+  if (!menuConversation.value?.share_id) return
+
+  try {
+    const shareUrl = `${window.location.origin}/share/${menuConversation.value.share_id}`
+    await navigator.clipboard.writeText(shareUrl)
+    alert('Share link copied to clipboard!')
+  } catch (error) {
+    console.error('Failed to copy share link:', error)
+    alert('Failed to copy link. Please try again.')
+  }
+
   hideMenu()
 }
 

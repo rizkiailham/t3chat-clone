@@ -40,6 +40,7 @@ export async function checkSupabaseConnection(): Promise<boolean> {
     }
 
     if (!session) {
+      console.error('❌ No active session found')
       return false
     }
 
@@ -73,6 +74,7 @@ export async function refreshSupabaseSession(): Promise<boolean> {
     const { data: { session: currentSession } } = await supabase.auth.getSession()
 
     if (!currentSession) {
+      console.error('❌ No session to refresh')
       return false
     }
 

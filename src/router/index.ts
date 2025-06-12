@@ -23,6 +23,18 @@ const router = createRouter({
       name: 'auth-callback',
       component: () => import('../views/AuthCallback.vue')
     },
+    {
+      path: '/chat/:conversationId',
+      name: 'chat',
+      component: ChatInterface,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/share/:shareId',
+      name: 'shared-conversation',
+      component: () => import('../views/SharedConversation.vue'),
+      meta: { requiresAuth: false }
+    },
     // Redirect old routes
     {
       path: '/about',
@@ -47,7 +59,10 @@ router.beforeEach(async (to, from, next) => {
     attempts++
   }
 
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+  // Allow access to shared conversations without authentication
+  if (to.name === 'shared-conversation') {
+    next()
+  } else if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/login')
   } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
     next('/')
