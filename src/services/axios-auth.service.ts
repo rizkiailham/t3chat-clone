@@ -84,11 +84,15 @@ export class AxiosAuthService {
       if (response.data.access_token) {
         // Store new tokens
         this.storeTokens(response.data.access_token, response.data.refresh_token)
-        
+
         this.sessionCache = response.data
         this.cacheTimestamp = Date.now()
-        
+
         console.log('✅ Session refreshed via Axios')
+
+        // Emit token refresh event to notify stores
+        this.emitTokenRefreshEvent()
+
         return response.data
       }
 
@@ -306,6 +310,16 @@ export class AxiosAuthService {
   async getAccessToken(): Promise<string | null> {
     const session = await this.getSession()
     return session?.access_token || null
+  }
+
+  // Emit token refresh event to notify stores
+  private emitTokenRefreshEvent(): void {
+    // Dispatch custom event for token refresh
+    const event = new CustomEvent('tokenRefresh', {
+      detail: { timestamp: Date.now() }
+    })
+    window.dispatchEvent(event)
+    console.log('📡 Token refresh event emitted')
   }
 }
 

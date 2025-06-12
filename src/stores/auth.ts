@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { AuthService } from '../services/auth.service'
-import type { User, AuthState } from '../types'
+import type { User } from '../types'
 
 const authService = new AuthService()
 
@@ -108,14 +108,25 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // Enhanced method to refresh authentication state with retry logic
-  async function refreshAuth() {
+  async function refreshAuth(skipChatRefresh: boolean = false) {
     try {
-      console.log('🔄 Refreshing authentication state...')
+      console.log('🔄 Refreshing authentication state...', { skipChatRefresh })
 
       // First try to refresh the session
       try {
         await authService.refreshSession()
         console.log('✅ Session refreshed')
+
+        // Notify chat store about token refresh without triggering full refresh
+        if (skipChatRefresh) {
+          try {
+            const { useChatStore } = await import('./chat')
+            const chatStore = useChatStore()
+            chatStore.handleTokenRefresh()
+          } catch (importError) {
+            console.log('⚠️ Could not notify chat store about token refresh:', importError)
+          }
+        }
       } catch (sessionError) {
         console.log('⚠️ Session refresh failed:', sessionError)
       }
@@ -141,6 +152,28 @@ export const useAuthStore = defineStore('auth', () => {
       console.error('❌ Failed to refresh auth:', error)
       user.value = null
       session.value = null
+    }
+  }
+
+  // Lightweight token refresh that doesn't trigger chat state refresh
+  async function refreshTokenOnly() {
+    try {
+      console.log('🔑 Refreshing token only...')
+      await authService.refreshSession()
+
+      // Notify chat store about token refresh
+      try {
+        const { useChatStore } = await import('./chat')
+        const chatStore = useChatStore()
+        chatStore.handleTokenRefresh()
+      } catch (importError) {
+        console.log('⚠️ Could not notify chat store about token refresh:', importError)
+      }
+
+      console.log('✅ Token refreshed successfully')
+    } catch (error) {
+      console.error('❌ Failed to refresh token:', error)
+      throw error
     }
   }
 
@@ -176,6 +209,7 @@ export const useAuthStore = defineStore('auth', () => {
     getSession,
     initializeAuth,
     refreshAuth,
+    refreshTokenOnly,
     handleAuthCallback,
     clearError
   }

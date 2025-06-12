@@ -8,8 +8,8 @@ const llmService = new LLMService()
 export const useSettingsStore = defineStore('settings', () => {
   const settings = ref<AppSettings>({
     theme: 'system',
-    defaultModel: 'gpt-4o-mini',
-    defaultProvider: 'openai',
+    defaultModel: 'gemini-2.0-flash',
+    defaultProvider: 'google',
     temperature: 0.7,
     maxTokens: 4000,
     systemPrompt: 'You are a helpful AI assistant.'

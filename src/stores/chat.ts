@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import { checkSupabaseConnection, refreshSupabaseSession } from '../services/supabase'
 import { axiosDb } from '../services/axios-db'
 import { LLMService } from '../services/llm.service'
-import type { Conversation, Message, ChatState, ChatMessage } from '../types'
+import type { Conversation, Message, ChatMessage } from '../types'
 import { useAuthStore } from './auth'
 import router from '../router'
 
@@ -16,6 +16,12 @@ export const useChatStore = defineStore('chat', () => {
   const loading = ref(false)
   const streaming = ref(false)
   const error = ref<string | null>(null)
+
+  // State tracking for smart refresh
+  const lastRefreshTimestamp = ref<number>(0)
+  const lastConversationId = ref<string | null>(null)
+  const isRefreshing = ref(false)
+  const REFRESH_DEBOUNCE_MS = 2000 // Prevent refreshes within 2 seconds
 
   const hasConversations = computed(() => conversations.value.length > 0)
   const currentMessages = computed(() => messages.value)
@@ -86,12 +92,22 @@ export const useChatStore = defineStore('chat', () => {
         throw new Error('Invalid conversation object')
       }
 
+      // Smart refresh: Check if we're already on this conversation
+      if (currentConversation.value?.id === conversation.id &&
+          lastConversationId.value === conversation.id &&
+          messages.value.length > 0) {
+        console.log('✅ Already on this conversation with messages loaded, skipping reload')
+        loading.value = false
+        return
+      }
+
       // Clear current state first
       messages.value = []
       currentConversation.value = null
 
       // Set new conversation
       currentConversation.value = conversation
+      lastConversationId.value = conversation.id
 
       // Ultra-robust message loading with multiple retry strategies
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -719,18 +735,43 @@ export const useChatStore = defineStore('chat', () => {
     error.value = null
   }
 
-  // Enhanced refresh state with robust connection handling
-  async function refreshState() {
-    try {
-      console.log('🔄 Refreshing chat state...')
+  // Handle token refresh without full state refresh
+  function handleTokenRefresh() {
+    console.log('🔑 Token refreshed, updating timestamp only')
+    // Just update the timestamp, no need to reload data
+    lastRefreshTimestamp.value = Date.now()
+    // Clear any auth-related errors
+    if (error.value?.includes('auth') || error.value?.includes('session') || error.value?.includes('expired')) {
+      error.value = null
+    }
+  }
 
-      // First check and refresh database connection
+  // Smart refresh state with debouncing and selective updates
+  async function refreshState(force: boolean = false) {
+    try {
+      console.log('🔄 Smart refresh state called...', { force })
+
+      // Debounce rapid refresh calls
+      const now = Date.now()
+      if (!force && isRefreshing.value) {
+        console.log('⏳ Refresh already in progress, skipping...')
+        return
+      }
+
+      if (!force && (now - lastRefreshTimestamp.value) < REFRESH_DEBOUNCE_MS) {
+        console.log('⏳ Refresh called too recently, debouncing...')
+        return
+      }
+
+      isRefreshing.value = true
+      lastRefreshTimestamp.value = now
+
+      // First check and refresh database connection only if needed
       console.log('🔍 Checking database connection...')
       const isConnected = await checkSupabaseConnection()
       if (!isConnected) {
         console.log('🔄 Database connection unhealthy, refreshing session...')
         await refreshSupabaseSession()
-
         // Wait a moment for connection to stabilize
         await new Promise(resolve => setTimeout(resolve, 1000))
       }
@@ -741,42 +782,61 @@ export const useChatStore = defineStore('chat', () => {
         conversations.value = []
         currentConversation.value = null
         messages.value = []
+        lastConversationId.value = null
         return
       }
 
       // Clear any previous errors
       error.value = null
 
-      // Reload conversations with retry logic
+      // Smart conversation loading - only reload if we don't have any or forced
       try {
-        if (conversations.value.length === 0) {
-          console.log('🔄 No conversations loaded, reloading...')
+        if (conversations.value.length === 0 || force) {
+          console.log('🔄 Loading conversations...', {
+            hasConversations: conversations.value.length > 0,
+            force
+          })
           await loadConversations()
         } else {
-          console.log('🔄 Refreshing existing conversations...')
-          await loadConversations()
+          console.log('✅ Conversations already loaded, skipping reload')
         }
       } catch (convError) {
         console.error('❌ Failed to load conversations during refresh:', convError)
         // Don't throw here, continue with other refresh operations
       }
 
-      // Reload messages for current conversation if needed
+      // Smart message loading - only reload if conversation changed or forced
       if (currentConversation.value) {
-        try {
-          console.log('🔄 Refreshing current conversation messages...')
-          await selectConversation(currentConversation.value)
-        } catch (msgError) {
-          console.error('❌ Failed to reload messages during refresh:', msgError)
-          // Don't throw here, just log the error
+        const currentId = currentConversation.value.id
+        const needsMessageReload = force ||
+                                  lastConversationId.value !== currentId ||
+                                  messages.value.length === 0
+
+        if (needsMessageReload) {
+          try {
+            console.log('🔄 Reloading messages for current conversation...', {
+              conversationId: currentId,
+              lastId: lastConversationId.value,
+              messageCount: messages.value.length,
+              force
+            })
+            await selectConversation(currentConversation.value)
+          } catch (msgError) {
+            console.error('❌ Failed to reload messages during refresh:', msgError)
+            // Don't throw here, just log the error
+          }
+        } else {
+          console.log('✅ Messages already loaded for current conversation, skipping reload')
         }
       }
 
-      console.log('✅ Chat state refreshed successfully')
+      console.log('✅ Smart refresh completed successfully')
     } catch (refreshError: any) {
       console.error('❌ Failed to refresh chat state:', refreshError)
       // Set a user-friendly error message
       error.value = 'Connection lost. Please check your internet connection and try again.'
+    } finally {
+      isRefreshing.value = false
     }
   }
 
@@ -868,6 +928,14 @@ export const useChatStore = defineStore('chat', () => {
     router.push(`/share/${shareId}`)
   }
 
+  // Set up token refresh event listener
+  if (typeof window !== 'undefined') {
+    window.addEventListener('tokenRefresh', () => {
+      console.log('🔑 Received token refresh event in chat store')
+      handleTokenRefresh()
+    })
+  }
+
   return {
     // State
     conversations,
@@ -895,6 +963,7 @@ export const useChatStore = defineStore('chat', () => {
     clearCurrentConversation,
     clearError,
     refreshState,
+    handleTokenRefresh,
 
     // Sharing actions
     shareConversation,

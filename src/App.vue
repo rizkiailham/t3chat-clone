@@ -24,9 +24,9 @@ onMounted(() => {
   visibilityChangeHandler = () => {
     console.log('👁️ Global visibility changed:', document.visibilityState)
     if (document.visibilityState === 'visible') {
-      console.log('🔄 App became visible, refreshing global state...')
-      // Refresh auth state when app becomes visible
-      authStore.refreshAuth()
+      console.log('🔄 App became visible, light auth refresh...')
+      // Light refresh auth state when app becomes visible (no chat refresh)
+      authStore.refreshTokenOnly().catch(console.error)
     }
   }
 

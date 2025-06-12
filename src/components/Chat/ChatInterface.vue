@@ -429,7 +429,7 @@ onMounted(async () => {
   window.addEventListener('focus', focusHandler)
   window.addEventListener('blur', blurHandler)
 
-  // Start connection health monitoring
+  // Start smart connection health monitoring
   connectionMonitor = setInterval(async () => {
     // Only monitor if user is authenticated and page is visible
     if (authStore.isAuthenticated && document.visibilityState === 'visible') {
@@ -437,15 +437,15 @@ onMounted(async () => {
         // Simple health check - try to get session
         const session = await authStore.getSession()
         if (!session) {
-          console.log('⚠️ Connection monitor: No session found, refreshing...')
-          await handlePageVisible()
+          console.log('⚠️ Connection monitor: No session found, light refresh...')
+          await authStore.refreshTokenOnly()
         }
       } catch (error) {
-        console.log('⚠️ Connection monitor: Health check failed, refreshing...', error)
-        await handlePageVisible()
+        console.log('⚠️ Connection monitor: Health check failed, light refresh...', error)
+        await authStore.refreshTokenOnly()
       }
     }
-  }, 30000) // Check every 30 seconds
+  }, 60000) // Check every 60 seconds (less aggressive)
 
   console.log('✅ Event listeners and connection monitor added')
 })
@@ -471,31 +471,34 @@ onUnmounted(() => {
   }
 })
 
-// Enhanced page visible handler with robust connection recovery
+// Smart page visible handler with optimized refresh logic
 async function handlePageVisible() {
   try {
-    console.log('🔄 Handling page visible event - comprehensive recovery')
+    console.log('🔄 Handling page visible event - smart recovery')
 
     // Clear any existing errors first
     chatStore.clearError()
 
-    // Step 1: Refresh authentication state with retry
-    console.log('🔐 Step 1: Refreshing authentication...')
-    let authRetries = 3
-    while (authRetries > 0) {
-      try {
-        await authStore.refreshAuth()
-        break
-      } catch (authError) {
-        console.warn(`❌ Auth refresh failed, retries left: ${authRetries - 1}`, authError)
-        authRetries--
-        if (authRetries > 0) {
-          await new Promise(resolve => setTimeout(resolve, 1000))
-        }
-      }
+    // Step 1: Check if we actually need to refresh
+    const currentSession = await authStore.getSession()
+    if (!currentSession) {
+      console.log('❌ No session found, redirecting to login')
+      router.push('/login')
+      return
     }
 
-    // Step 2: Check authentication status
+    // Step 2: Light auth refresh (token only, no chat state refresh)
+    console.log('🔐 Step 1: Light authentication refresh...')
+    try {
+      await authStore.refreshTokenOnly()
+      console.log('✅ Token refreshed successfully')
+    } catch (authError) {
+      console.warn('⚠️ Token refresh failed, trying full auth refresh:', authError)
+      // Fallback to full auth refresh if token refresh fails
+      await authStore.refreshAuth(true) // Skip chat refresh
+    }
+
+    // Step 3: Check authentication status
     if (!authStore.isAuthenticated) {
       console.log('❌ Authentication lost after refresh attempts, redirecting to login')
       router.push('/login')
@@ -504,15 +507,11 @@ async function handlePageVisible() {
 
     console.log('✅ Authentication verified')
 
-    // Step 3: Refresh chat state with comprehensive recovery
-    console.log('💬 Step 2: Refreshing chat state...')
-    await chatStore.refreshState()
+    // Step 4: Smart chat state refresh (only if needed)
+    console.log('💬 Step 2: Smart chat state refresh...')
+    await chatStore.refreshState(false) // Don't force refresh
 
-    // Step 4: Force component re-render to ensure all event handlers are reattached
-    componentKey.value++
-    console.log('🔄 Component key updated to force re-render:', componentKey.value)
-
-    // Step 5: Re-focus input if available
+    // Step 5: Re-focus input if available (no component re-render needed)
     await nextTick()
     const chatInput = document.querySelector('textarea')
     if (chatInput && !chatStore.streaming) {
@@ -520,7 +519,7 @@ async function handlePageVisible() {
       console.log('🎯 Chat input re-focused')
     }
 
-    console.log('✅ Page visible handling completed successfully')
+    console.log('✅ Smart page visible handling completed successfully')
   } catch (error) {
     console.error('❌ Critical error in page visible handler:', error)
 
@@ -529,7 +528,7 @@ async function handlePageVisible() {
 
     // Try one more auth refresh as last resort
     try {
-      await authStore.refreshAuth()
+      await authStore.refreshAuth(true) // Skip chat refresh
     } catch (finalError) {
       console.error('❌ Final auth refresh failed:', finalError)
     }
