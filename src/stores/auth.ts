@@ -107,15 +107,31 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Add method to refresh authentication state
+  // Enhanced method to refresh authentication state with retry logic
   async function refreshAuth() {
     try {
       console.log('🔄 Refreshing authentication state...')
 
+      // First try to refresh the session
+      try {
+        await authService.refreshSession()
+        console.log('✅ Session refreshed')
+      } catch (sessionError) {
+        console.log('⚠️ Session refresh failed:', sessionError)
+      }
+
+      // Then get current session
       const currentSession = await getSession()
       if (currentSession) {
-        await getCurrentUser()
-        console.log('✅ Authentication refreshed successfully')
+        // Try to get current user with retry logic
+        const currentUser = await getCurrentUser()
+        if (currentUser) {
+          console.log('✅ Authentication refreshed successfully')
+        } else {
+          console.log('⚠️ Session exists but user not found')
+          user.value = null
+          session.value = null
+        }
       } else {
         console.log('❌ No session found during refresh')
         user.value = null
@@ -130,6 +146,17 @@ export const useAuthStore = defineStore('auth', () => {
 
   function clearError() {
     error.value = null
+  }
+
+  // Handle auth callback
+  async function handleAuthCallback(): Promise<User | null> {
+    try {
+      console.log('🔍 Handling auth callback...')
+      return await authService.handleAuthCallback()
+    } catch (error) {
+      console.error('❌ Failed to handle auth callback:', error)
+      return null
+    }
   }
 
   return {
@@ -149,6 +176,7 @@ export const useAuthStore = defineStore('auth', () => {
     getSession,
     initializeAuth,
     refreshAuth,
+    handleAuthCallback,
     clearError
   }
 })

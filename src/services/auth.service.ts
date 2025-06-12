@@ -1,93 +1,73 @@
-import { supabase, db } from './supabase'
+import { supabase } from './supabase'
+import { axiosAuthService } from './axios-auth.service'
 import type { User } from '../types'
 
 export class AuthService {
-  // Sign in with Google
+  // Sign in with Google using Axios
   async signInWithGoogle() {
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          }
-        }
-      })
-
-      if (error) throw error
-      return data
+      console.log('🔍 Signing in with Google via Axios...')
+      await axiosAuthService.signInWithGoogle()
     } catch (error) {
       console.error('Error signing in with Google:', error)
       throw error
     }
   }
 
-  // Sign out
+  // Sign out using Axios
   async signOut() {
     try {
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
+      console.log('🔍 Signing out via Axios...')
+      await axiosAuthService.signOut()
     } catch (error) {
       console.error('Error signing out:', error)
       throw error
     }
   }
 
-  // Get current session
+  // Get current session using Axios
   async getSession() {
     try {
-      const { data: { session }, error } = await supabase.auth.getSession()
-      if (error) throw error
-      return session
+      console.log('🔍 Getting session via Axios...')
+      return await axiosAuthService.getSession()
     } catch (error) {
       console.error('Error getting session:', error)
       throw error
     }
   }
 
-  // Get current user
-  async getCurrentUser(): Promise<User | null> {
+  // Get current user using Axios
+  async getCurrentUser(forceRefresh = false): Promise<User | null> {
     try {
-      const { data: { user }, error } = await supabase.auth.getUser()
-      if (error) throw error
-      
-      if (!user) return null
-
-      // Get user profile from our users table
-      try {
-        const profile = await db.getUser(user.id)
-        return profile
-      } catch (profileError) {
-        // If user doesn't exist in our table, create them
-        const newUser = {
-          id: user.id,
-          email: user.email || '',
-          name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
-          avatar_url: user.user_metadata?.avatar_url || null,
-        }
-        
-        const createdUser = await db.updateUser(user.id, newUser)
-        return createdUser
-      }
+      console.log('🔍 Getting current user via Axios...')
+      return await axiosAuthService.getCurrentUser(forceRefresh)
     } catch (error) {
-      console.error('Error getting current user:', error)
+      console.error('❌ Error getting current user:', error)
       return null
     }
   }
 
-  // Listen to auth state changes
+  // Handle auth callback using Axios
+  async handleAuthCallback(): Promise<User | null> {
+    try {
+      console.log('🔍 Handling auth callback via Axios...')
+      return await axiosAuthService.handleAuthCallback()
+    } catch (error) {
+      console.error('❌ Error handling auth callback:', error)
+      return null
+    }
+  }
+
+  // Listen to auth state changes (still using Supabase for real-time events)
   onAuthStateChange(callback: (event: string, session: any) => void) {
     return supabase.auth.onAuthStateChange(callback)
   }
 
-  // Refresh session
+  // Refresh session using Axios
   async refreshSession() {
     try {
-      const { data, error } = await supabase.auth.refreshSession()
-      if (error) throw error
-      return data
+      console.log('🔍 Refreshing session via Axios...')
+      return await axiosAuthService.refreshSession()
     } catch (error) {
       console.error('Error refreshing session:', error)
       throw error

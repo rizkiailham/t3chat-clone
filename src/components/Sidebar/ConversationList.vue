@@ -186,12 +186,83 @@ function formatDate(dateString: string): string {
 }
 
 async function selectConversation(conversation: Conversation) {
-  try {
-    await chatStore.selectConversation(conversation)
-    // Emit event to close mobile sidebar
-    emit('conversationSelected')
-  } catch (error) {
-    console.error('Failed to select conversation:', error)
+  const maxRetries = 3
+  let lastError: any = null
+
+  console.log('🎯 ConversationList: Selecting conversation:', conversation.id, conversation.title)
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`🔄 ConversationList: Selection attempt ${attempt + 1}/${maxRetries + 1}`)
+
+      // Pre-selection validation on retries
+      if (attempt > 0) {
+        console.log('🔍 ConversationList: Pre-selection validation...')
+
+        // Check if chat store is in a good state
+        if (chatStore.loading) {
+          console.log('⏳ Chat store is loading, waiting...')
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        }
+
+        // Progressive delay
+        const delay = Math.min(1000 * attempt, 2000)
+        console.log(`⏳ ConversationList: Waiting ${delay}ms before retry...`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+      }
+
+      // Attempt conversation selection
+      await chatStore.selectConversation(conversation)
+
+      console.log('✅ ConversationList: Conversation selected successfully')
+
+      // Emit event to close mobile sidebar
+      emit('conversationSelected')
+
+      // Success - break out of retry loop
+      break
+
+    } catch (error: any) {
+      lastError = error
+      console.error(`❌ ConversationList: Selection failed (attempt ${attempt + 1}):`, {
+        message: error.message,
+        code: error.code,
+        status: error.status
+      })
+
+      // Analyze error for retry decision
+      const isRetryable = error.message?.includes('auth') ||
+                         error.message?.includes('JWT') ||
+                         error.message?.includes('session') ||
+                         error.message?.includes('network') ||
+                         error.message?.includes('fetch') ||
+                         error.message?.includes('timeout') ||
+                         !error.status
+
+      console.log(`🔍 ConversationList: Error retryable: ${isRetryable}`)
+
+      // If we have retries left and it's retryable
+      if (attempt < maxRetries && isRetryable) {
+        console.log(`🔄 ConversationList: Will retry (${maxRetries - attempt} attempts left)`)
+        continue
+      }
+
+      // No more retries or non-retryable error
+      console.error(`💥 ConversationList: Selection failed permanently after ${attempt + 1} attempts`)
+
+      // Show user-friendly error
+      if (error.message?.includes('auth') || error.message?.includes('JWT')) {
+        alert('Session expired. Please refresh the page and try again.')
+      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        alert('Network error. Please check your connection and try again.')
+      } else if (error.message?.includes('timeout')) {
+        alert('Request timed out. Please try again.')
+      } else {
+        alert('Failed to load conversation. Please try again.')
+      }
+
+      break
+    }
   }
 }
 

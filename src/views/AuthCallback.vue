@@ -46,32 +46,34 @@ const error = ref<string | null>(null)
 
 onMounted(async () => {
   try {
-    // Handle the auth callback
-    const { data, error: authError } = await supabase.auth.getSession()
-    
-    if (authError) {
-      throw authError
-    }
+    console.log('🔐 Auth callback started via Axios...')
 
-    if (data.session) {
+    status.value = 'Processing authentication...'
+    message.value = 'Setting up your account...'
+
+    // Handle auth callback using Axios service
+    const user = await authStore.handleAuthCallback()
+
+    if (user) {
+      console.log('✅ User setup complete via Axios:', user.email)
       status.value = 'Success!'
       message.value = 'Redirecting to your dashboard...'
-      
-      // Get the current user
-      await authStore.getCurrentUser()
-      
+
+      // Initialize auth store with the new user
+      await authStore.initializeAuth()
+
       // Redirect to home after a short delay
       setTimeout(() => {
         router.push('/')
-      }, 1500)
+      }, 1000)
     } else {
-      throw new Error('No session found')
+      throw new Error('Failed to authenticate user')
     }
   } catch (err: any) {
-    console.error('Auth callback error:', err)
+    console.error('❌ Auth callback error:', err)
     error.value = err.message || 'Authentication failed'
     status.value = 'Authentication Failed'
-    message.value = 'There was a problem signing you in.'
+    message.value = 'There was a problem signing you in. Please try again.'
   }
 })
 

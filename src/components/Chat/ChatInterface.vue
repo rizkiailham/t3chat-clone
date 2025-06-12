@@ -269,7 +269,7 @@
     />
 
     <!-- Debug Panel for Testing -->
-    <div class="hidden fixed bottom-4 right-4 z-50">
+    <!-- <div class=" fixed bottom-4 right-4 z-50">
       <div class="bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded-lg p-3 text-xs space-y-2 max-w-xs">
         <div class="font-semibold text-yellow-800 dark:text-yellow-200">🧪 Debug Panel</div>
         <div class="space-y-1">
@@ -297,9 +297,15 @@
           >
             Force Refresh
           </button>
+          <button
+            @click="testConversationSelection"
+            class="w-full px-2 py-1 bg-indigo-200 dark:bg-indigo-800 text-indigo-800 dark:text-indigo-200 rounded text-xs hover:bg-indigo-300 dark:hover:bg-indigo-700"
+          >
+            Test Conversation Selection
+          </button>
         </div>
       </div>
-    </div>
+    </div> -->
   </div>
 </template>
 
@@ -359,6 +365,7 @@ const isMobile = computed(() => {
 let visibilityChangeHandler: (() => void) | null = null
 let focusHandler: (() => void) | null = null
 let blurHandler: (() => void) | null = null
+let connectionMonitor: NodeJS.Timeout | null = null
 
 onMounted(async () => {
   console.log('🚀 ChatInterface mounted')
@@ -396,11 +403,29 @@ onMounted(async () => {
   window.addEventListener('focus', focusHandler)
   window.addEventListener('blur', blurHandler)
 
-  console.log('✅ Event listeners added for browser state management')
+  // Start connection health monitoring
+  connectionMonitor = setInterval(async () => {
+    // Only monitor if user is authenticated and page is visible
+    if (authStore.isAuthenticated && document.visibilityState === 'visible') {
+      try {
+        // Simple health check - try to get session
+        const session = await authStore.getSession()
+        if (!session) {
+          console.log('⚠️ Connection monitor: No session found, refreshing...')
+          await handlePageVisible()
+        }
+      } catch (error) {
+        console.log('⚠️ Connection monitor: Health check failed, refreshing...', error)
+        await handlePageVisible()
+      }
+    }
+  }, 30000) // Check every 30 seconds
+
+  console.log('✅ Event listeners and connection monitor added')
 })
 
 onUnmounted(() => {
-  console.log('🧹 ChatInterface unmounting, cleaning up event listeners')
+  console.log('🧹 ChatInterface unmounting, cleaning up event listeners and monitors')
 
   // Remove event listeners
   if (visibilityChangeHandler) {
@@ -412,33 +437,76 @@ onUnmounted(() => {
   if (blurHandler) {
     window.removeEventListener('blur', blurHandler)
   }
+
+  // Clear connection monitor
+  if (connectionMonitor) {
+    clearInterval(connectionMonitor)
+    connectionMonitor = null
+  }
 })
 
-// Handle when page becomes visible/focused
+// Enhanced page visible handler with robust connection recovery
 async function handlePageVisible() {
   try {
-    console.log('🔄 Handling page visible event')
+    console.log('🔄 Handling page visible event - comprehensive recovery')
 
-    // First refresh authentication state
-    await authStore.refreshAuth()
+    // Clear any existing errors first
+    chatStore.clearError()
 
-    // Re-check authentication after refresh
+    // Step 1: Refresh authentication state with retry
+    console.log('🔐 Step 1: Refreshing authentication...')
+    let authRetries = 3
+    while (authRetries > 0) {
+      try {
+        await authStore.refreshAuth()
+        break
+      } catch (authError) {
+        console.warn(`❌ Auth refresh failed, retries left: ${authRetries - 1}`, authError)
+        authRetries--
+        if (authRetries > 0) {
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        }
+      }
+    }
+
+    // Step 2: Check authentication status
     if (!authStore.isAuthenticated) {
-      console.log('❌ Authentication lost, redirecting to login')
+      console.log('❌ Authentication lost after refresh attempts, redirecting to login')
       router.push('/login')
       return
     }
 
-    // Refresh chat state
+    console.log('✅ Authentication verified')
+
+    // Step 3: Refresh chat state with comprehensive recovery
+    console.log('💬 Step 2: Refreshing chat state...')
     await chatStore.refreshState()
 
-    // Force component re-render to ensure all event handlers are reattached
+    // Step 4: Force component re-render to ensure all event handlers are reattached
     componentKey.value++
     console.log('🔄 Component key updated to force re-render:', componentKey.value)
 
-    console.log('✅ Page visible handling completed')
+    // Step 5: Re-focus input if available
+    await nextTick()
+    const chatInput = document.querySelector('textarea')
+    if (chatInput && !chatStore.streaming) {
+      chatInput.focus()
+      console.log('🎯 Chat input re-focused')
+    }
+
+    console.log('✅ Page visible handling completed successfully')
   } catch (error) {
-    console.error('❌ Error handling page visible:', error)
+    console.error('❌ Critical error in page visible handler:', error)
+
+    // Show user-friendly error
+    chatStore.error = 'Connection lost. Please refresh the page or check your internet connection.'
+
+    // Try one more auth refresh as last resort
+    try {
+      await authStore.refreshAuth()
+    } catch (finalError) {
+      console.error('❌ Final auth refresh failed:', finalError)
+    }
   }
 }
 
@@ -476,34 +544,58 @@ async function handleSendMessage(content: string) {
   try {
     console.log('🚀 ChatInterface: Handling send message:', content)
 
-    // Ensure we have a valid state before sending
+    // Clear any existing errors
+    chatStore.clearError()
+
+    // Comprehensive validation and recovery
     if (!authStore.isAuthenticated) {
-      console.warn('❌ User not authenticated')
+      console.warn('❌ User not authenticated, attempting recovery...')
       await authStore.refreshAuth()
       if (!authStore.isAuthenticated) {
+        console.error('❌ Authentication recovery failed')
         router.push('/login')
         return
       }
+      console.log('✅ Authentication recovered')
     }
 
     if (!content || !content.trim()) {
       console.warn('❌ Empty message content')
+      chatStore.error = 'Please enter a message'
       return
     }
 
     if (!chatStore.currentConversation) {
-      console.warn('❌ No current conversation')
-      chatStore.error = 'Please select or create a conversation first'
-      return
+      console.warn('❌ No current conversation, attempting to recover state...')
+      await chatStore.refreshState()
+
+      if (!chatStore.currentConversation) {
+        console.error('❌ No conversation available after state refresh')
+        chatStore.error = 'Please select or create a conversation first'
+        return
+      }
+      console.log('✅ Conversation state recovered')
     }
 
-    console.log('✅ Sending message to chat store...')
+    console.log('✅ All validations passed, sending message to chat store...')
     await chatStore.sendMessage(content, true)
     console.log('✅ Message sent successfully')
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Failed to send message:', error)
-    chatStore.error = 'Failed to send message. Please try again.'
+
+    // Provide specific error messages based on error type
+    if (error.message?.includes('JWT') || error.message?.includes('auth')) {
+      chatStore.error = 'Session expired. Please refresh the page and try again.'
+      // Try to refresh auth in background
+      authStore.refreshAuth().catch(console.error)
+    } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+      chatStore.error = 'Network error. Please check your connection and try again.'
+    } else if (error.message?.includes('conversation')) {
+      chatStore.error = 'Conversation error. Please select a conversation and try again.'
+    } else {
+      chatStore.error = error.message || 'Failed to send message. Please try again.'
+    }
   }
 }
 
@@ -511,10 +603,26 @@ async function handleCreateConversation(data: { title: string; provider: string;
   try {
     console.log('🚀 ChatInterface: Creating conversation with data:', data)
 
+    // Clear any existing errors
+    chatStore.clearError()
+
+    // Validate input data
     if (!data.title || !data.provider || !data.model) {
       console.warn('❌ Invalid conversation data:', data)
       chatStore.error = 'Please fill in all required fields'
       return
+    }
+
+    // Ensure user is authenticated
+    if (!authStore.isAuthenticated) {
+      console.warn('❌ User not authenticated, attempting recovery...')
+      await authStore.refreshAuth()
+      if (!authStore.isAuthenticated) {
+        console.error('❌ Authentication recovery failed')
+        router.push('/login')
+        return
+      }
+      console.log('✅ Authentication verified')
     }
 
     console.log('✅ Creating conversation...')
@@ -526,9 +634,18 @@ async function handleCreateConversation(data: { title: string; provider: string;
     // Clear any previous errors
     chatStore.clearError()
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Failed to create conversation:', error)
-    chatStore.error = 'Failed to create conversation. Please try again.'
+
+    // Provide specific error messages
+    if (error.message?.includes('JWT') || error.message?.includes('auth')) {
+      chatStore.error = 'Session expired. Please refresh the page and try again.'
+      authStore.refreshAuth().catch(console.error)
+    } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+      chatStore.error = 'Network error. Please check your connection and try again.'
+    } else {
+      chatStore.error = error.message || 'Failed to create conversation. Please try again.'
+    }
   }
 }
 
@@ -576,46 +693,94 @@ function forceRefresh() {
 }
 
 async function testApiConnections() {
-  console.log('🧪 Testing API connections...')
+  console.log('🧪 Comprehensive API connection test starting...')
+
+  const results = {
+    supabaseConnection: false,
+    authentication: false,
+    database: false,
+    conversation: false,
+    session: false
+  }
 
   try {
-    // Test authentication
-    console.log('🔐 Testing authentication...')
-    const isAuth = authStore.isAuthenticated
-    console.log('Auth status:', isAuth)
-
-    if (isAuth) {
-      console.log('✅ Authentication: OK')
-    } else {
-      console.log('❌ Authentication: FAILED')
-      await authStore.refreshAuth()
+    // Test 1: Supabase connection health
+    console.log('🔍 Test 1: Supabase connection health...')
+    try {
+      const { checkSupabaseConnection } = await import('../../services/supabase')
+      results.supabaseConnection = await checkSupabaseConnection()
+      console.log(`${results.supabaseConnection ? '✅' : '❌'} Supabase Connection: ${results.supabaseConnection ? 'HEALTHY' : 'UNHEALTHY'}`)
+    } catch (connError) {
+      console.error('❌ Supabase connection test failed:', connError)
     }
 
-    // Test database connection
-    console.log('🗄️ Testing database connection...')
+    // Test 2: Session validation
+    console.log('🔐 Test 2: Session validation...')
+    try {
+      const session = await authStore.getSession()
+      results.session = !!session
+      console.log(`${results.session ? '✅' : '❌'} Session: ${results.session ? 'VALID' : 'INVALID'}`)
+      if (session && session.expires_at) {
+        console.log('Session expires at:', new Date(session.expires_at * 1000))
+      }
+    } catch (sessionError) {
+      console.error('❌ Session test failed:', sessionError)
+    }
+
+    // Test 3: Authentication status
+    console.log('🔐 Test 3: Authentication status...')
+    results.authentication = authStore.isAuthenticated
+    console.log(`${results.authentication ? '✅' : '❌'} Authentication: ${results.authentication ? 'AUTHENTICATED' : 'NOT AUTHENTICATED'}`)
+
+    if (results.authentication) {
+      console.log('User ID:', authStore.user?.id)
+      console.log('User email:', authStore.user?.email)
+    }
+
+    // Test 4: Database operations
+    console.log('🗄️ Test 4: Database operations...')
     try {
       await chatStore.loadConversations()
-      console.log('✅ Database: OK')
+      results.database = true
+      console.log('✅ Database: ACCESSIBLE')
+      console.log('Conversations loaded:', chatStore.conversations.length)
     } catch (dbError) {
       console.error('❌ Database: FAILED', dbError)
     }
 
-    // Test current conversation
+    // Test 5: Current conversation state
+    console.log('💬 Test 5: Current conversation state...')
     if (chatStore.currentConversation) {
-      console.log('💬 Testing current conversation...')
+      results.conversation = true
+      console.log('✅ Conversation: ACTIVE')
       console.log('Current conversation:', chatStore.currentConversation.title)
       console.log('Messages count:', chatStore.messages.length)
-      console.log('✅ Conversation: OK')
+      console.log('Model:', chatStore.currentConversation.model_provider, chatStore.currentConversation.model_name)
     } else {
-      console.log('⚠️ No current conversation selected')
+      console.log('⚠️ Conversation: NO ACTIVE CONVERSATION')
     }
 
-    console.log('✅ API connection test completed')
-    alert('API connection test completed. Check console for details.')
+    // Summary
+    const passedTests = Object.values(results).filter(Boolean).length
+    const totalTests = Object.keys(results).length
 
-  } catch (error) {
+    console.log(`\n📊 Test Summary: ${passedTests}/${totalTests} tests passed`)
+    console.log('Results:', results)
+
+    const message = `API Connection Test Results:\n\n` +
+      `✅ Supabase Connection: ${results.supabaseConnection ? 'HEALTHY' : 'UNHEALTHY'}\n` +
+      `✅ Session: ${results.session ? 'VALID' : 'INVALID'}\n` +
+      `✅ Authentication: ${results.authentication ? 'OK' : 'FAILED'}\n` +
+      `✅ Database: ${results.database ? 'OK' : 'FAILED'}\n` +
+      `✅ Conversation: ${results.conversation ? 'ACTIVE' : 'NONE'}\n\n` +
+      `Score: ${passedTests}/${totalTests} tests passed\n\n` +
+      `Check console for detailed logs.`
+
+    alert(message)
+
+  } catch (error: any) {
     console.error('❌ API connection test failed:', error)
-    alert('API connection test failed. Check console for details.')
+    alert(`API connection test failed: ${error?.message || 'Unknown error'}\n\nCheck console for details.`)
   }
 }
 
@@ -713,6 +878,45 @@ And here's how it integrates with larger text blocks for a **professional, reada
 **The text is now more readable, properly spaced, and visually appealing!** ✨`
 
   handleSendMessage(testText)
+}
+
+function testConversationSelection() {
+  console.log('🧪 Testing conversation selection robustness...')
+
+  if (chatStore.conversations.length === 0) {
+    alert('No conversations available to test. Please create a conversation first.')
+    return
+  }
+
+  const testConversation = chatStore.conversations[0]
+  console.log('🎯 Testing with conversation:', testConversation.title)
+
+  // Simulate rapid selection attempts
+  let attempts = 0
+  const maxAttempts = 3
+
+  const testSelection = async () => {
+    attempts++
+    console.log(`🔄 Test attempt ${attempts}/${maxAttempts}`)
+
+    try {
+      await chatStore.selectConversation(testConversation)
+      console.log(`✅ Test attempt ${attempts} successful`)
+
+      if (attempts < maxAttempts) {
+        // Wait a bit and try again
+        setTimeout(testSelection, 1000)
+      } else {
+        console.log('✅ All conversation selection tests passed!')
+        alert('Conversation selection test completed successfully! Check console for details.')
+      }
+    } catch (error) {
+      console.error(`❌ Test attempt ${attempts} failed:`, error)
+      alert(`Conversation selection test failed on attempt ${attempts}. Check console for details.`)
+    }
+  }
+
+  testSelection()
 }
 </script>
 

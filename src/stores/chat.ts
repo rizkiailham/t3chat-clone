@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import { db } from '../services/supabase'
+import { checkSupabaseConnection, refreshSupabaseSession } from '../services/supabase'
+import { axiosDb } from '../services/axios-db'
 import { LLMService } from '../services/llm.service'
 import type { Conversation, Message, ChatState, ChatMessage } from '../types'
 import { useAuthStore } from './auth'
@@ -28,7 +29,7 @@ export const useChatStore = defineStore('chat', () => {
         throw new Error('User not authenticated')
       }
 
-      const data = await db.getConversations(authStore.user.id)
+      const data = await axiosDb.getConversations(authStore.user.id)
       conversations.value = data
     } catch (err: any) {
       error.value = err.message || 'Failed to load conversations'
@@ -55,7 +56,7 @@ export const useChatStore = defineStore('chat', () => {
         model_name: modelName,
       }
 
-      const conversation = await db.createConversation(newConversation)
+      const conversation = await axiosDb.createConversation(newConversation)
       conversations.value.unshift(conversation)
       currentConversation.value = conversation
       messages.value = []
@@ -70,11 +71,19 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   async function selectConversation(conversation: Conversation) {
+    const maxRetries = 3
+    let lastError: any = null
+
     try {
       loading.value = true
       error.value = null
 
-      console.log('Selecting conversation:', conversation.id, conversation.title)
+      console.log('🎯 Selecting conversation:', conversation.id, conversation.title)
+
+      // Validate conversation object
+      if (!conversation || !conversation.id) {
+        throw new Error('Invalid conversation object')
+      }
 
       // Clear current state first
       messages.value = []
@@ -83,13 +92,128 @@ export const useChatStore = defineStore('chat', () => {
       // Set new conversation
       currentConversation.value = conversation
 
-      // Load messages
-      const data = await db.getMessages(conversation.id)
-      messages.value = [...data] // Force reactivity with spread operator
+      // Ultra-robust message loading with multiple retry strategies
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          console.log(`📨 Loading messages (attempt ${attempt + 1}/${maxRetries + 1})...`)
+
+          // Pre-load validation on retries
+          if (attempt > 0) {
+            console.log('🔍 Pre-load connection validation...')
+
+            // Check auth state
+            const authStore = useAuthStore()
+            if (!authStore.isAuthenticated) {
+              console.log('🔐 Auth lost, refreshing...')
+              await authStore.refreshAuth()
+              if (!authStore.isAuthenticated) {
+                throw new Error('Authentication lost')
+              }
+            }
+
+            // Check database connection
+            const isConnected = await checkSupabaseConnection()
+            if (!isConnected) {
+              console.log('🔄 Database connection lost, refreshing session...')
+              await refreshSupabaseSession()
+            }
+
+            // Progressive delay
+            const delay = Math.min(1000 * attempt, 3000)
+            console.log(`⏳ Waiting ${delay}ms before retry...`)
+            await new Promise(resolve => setTimeout(resolve, delay))
+          }
+
+          // Use Axios exclusively for all database operations
+          console.log('🚀 Using Axios for message loading (no Supabase client)...')
+          const data = await axiosDb.getMessages(conversation.id)
+
+          if (!data || !Array.isArray(data)) {
+            throw new Error('Invalid data received from database')
+          }
+
+          console.log(`✅ Messages loaded successfully: ${data.length} messages`)
+          messages.value = [...data] // Force reactivity with spread operator
+
+          // Success - break out of retry loop
+          break
+
+        } catch (loadError: any) {
+          lastError = loadError
+          console.error(`❌ Message loading failed (attempt ${attempt + 1}):`, {
+            message: loadError.message,
+            code: loadError.code,
+            status: loadError.status
+          })
+
+          // Analyze error for retry decision
+          const isAuthError = loadError.message?.includes('JWT') ||
+                             loadError.message?.includes('auth') ||
+                             loadError.message?.includes('session') ||
+                             loadError.message?.includes('expired') ||
+                             loadError.code === 'PGRST301' ||
+                             loadError.code === 'PGRST116' ||
+                             loadError.status === 401
+
+          const isNetworkError = loadError.message?.includes('fetch') ||
+                                loadError.message?.includes('network') ||
+                                loadError.message?.includes('timeout') ||
+                                !loadError.status
+
+          const isRetryable = isAuthError || isNetworkError
+
+          console.log(`🔍 Error analysis: Auth=${isAuthError}, Network=${isNetworkError}, Retryable=${isRetryable}`)
+
+          // If we have retries left and it's retryable
+          if (attempt < maxRetries && isRetryable) {
+            console.log(`🔄 Will retry message loading (${maxRetries - attempt} attempts left)`)
+            continue
+          }
+
+          // No more retries or non-retryable error
+          console.error(`💥 Message loading failed permanently after ${attempt + 1} attempts`)
+
+          // Last resort: try direct Axios call with fresh token
+          if (attempt === maxRetries) {
+            console.log('🚨 Attempting direct Axios fallback...')
+            try {
+              // Force get fresh access token
+              const { axiosAuthService } = await import('../services/axios-auth.service')
+              const token = await axiosAuthService.getAccessToken()
+
+              if (!token) {
+                throw new Error('No access token available')
+              }
+
+              // Direct Axios call with fresh token
+              const data = await axiosDb.getMessages(conversation.id)
+
+              console.log(`✅ Direct Axios fallback successful: ${data?.length || 0} messages`)
+              messages.value = [...(data || [])]
+              break // Success with direct fallback
+
+            } catch (directError) {
+              console.error('❌ Direct Axios fallback failed:', directError)
+              throw lastError // Throw the original error
+            }
+          }
+        }
+      }
 
     } catch (err: any) {
-      console.error('Failed to select conversation:', err)
-      error.value = err.message || 'Failed to load conversation'
+      console.error('❌ Failed to select conversation:', err)
+
+      // Provide user-friendly error messages
+      if (err.message?.includes('auth') || err.message?.includes('JWT')) {
+        error.value = 'Session expired. Please refresh the page and try again.'
+      } else if (err.message?.includes('network') || err.message?.includes('fetch')) {
+        error.value = 'Network error. Please check your connection and try again.'
+      } else if (err.message?.includes('timeout')) {
+        error.value = 'Request timed out. Please try again.'
+      } else {
+        error.value = err.message || 'Failed to load conversation'
+      }
+
       // Reset state on error
       currentConversation.value = null
       messages.value = []
@@ -101,7 +225,7 @@ export const useChatStore = defineStore('chat', () => {
 
   async function updateConversationTitle(id: string, title: string) {
     try {
-      const updatedConversation = await db.updateConversation(id, { title })
+      const updatedConversation = await axiosDb.updateConversation(id, { title })
       const index = conversations.value.findIndex(c => c.id === id)
       if (index !== -1) {
         conversations.value[index] = updatedConversation
@@ -140,14 +264,14 @@ export const useChatStore = defineStore('chat', () => {
         system_prompt: originalConversation.system_prompt,
       }
 
-      const createdConversation = await db.createConversation(newConversation)
+      const createdConversation = await axiosDb.createConversation(newConversation)
 
       // Get original messages
-      const originalMessages = await db.getMessages(id)
+      const originalMessages = await axiosDb.getMessages(id)
 
       // Copy messages to new conversation
       for (const message of originalMessages) {
-        await db.createMessage({
+        await axiosDb.createMessage({
           conversation_id: createdConversation.id,
           role: message.role,
           content: message.content,
@@ -168,7 +292,7 @@ export const useChatStore = defineStore('chat', () => {
 
   async function deleteConversation(id: string) {
     try {
-      await db.deleteConversation(id)
+      await axiosDb.deleteConversation(id)
       conversations.value = conversations.value.filter(c => c.id !== id)
 
       if (currentConversation.value?.id === id) {
@@ -199,7 +323,7 @@ export const useChatStore = defineStore('chat', () => {
         content,
       }
 
-      const savedUserMessage = await db.createMessage(userMessage)
+      const savedUserMessage = await axiosDb.createMessage(userMessage)
       messages.value.push(savedUserMessage)
 
       // Prepare messages for LLM
@@ -218,7 +342,7 @@ export const useChatStore = defineStore('chat', () => {
           content: '',
         }
 
-        const savedAssistantMessage = await db.createMessage(assistantMessage)
+        const savedAssistantMessage = await axiosDb.createMessage(assistantMessage)
         messages.value.push(savedAssistantMessage)
 
         // Stream response
@@ -279,7 +403,7 @@ export const useChatStore = defineStore('chat', () => {
 
           // Update the message in the database with final content
           if (fullContent) {
-            await db.updateMessage(savedAssistantMessage.id, { content: fullContent })
+            await axiosDb.updateMessage(savedAssistantMessage.id, { content: fullContent })
           } else {
             throw new Error('No response content generated')
           }
@@ -310,12 +434,12 @@ export const useChatStore = defineStore('chat', () => {
             }
 
             // Update the message in the database with final content
-            await db.updateMessage(savedAssistantMessage.id, { content: fullContent })
+            await axiosDb.updateMessage(savedAssistantMessage.id, { content: fullContent })
           } catch (fallbackError) {
             console.error('Fallback also failed:', fallbackError)
             // Remove the empty assistant message if both streaming and fallback failed
             messages.value.splice(messageIndex, 1)
-            await db.deleteMessage(savedAssistantMessage.id)
+            await axiosDb.deleteMessage(savedAssistantMessage.id)
             throw streamError
           }
         }
@@ -340,12 +464,12 @@ export const useChatStore = defineStore('chat', () => {
           }
         }
 
-        const savedAssistantMessage = await db.createMessage(assistantMessage)
+        const savedAssistantMessage = await axiosDb.createMessage(assistantMessage)
         messages.value.push(savedAssistantMessage)
       }
 
       // Update conversation timestamp
-      await db.updateConversation(currentConversation.value.id, {
+      await axiosDb.updateConversation(currentConversation.value.id, {
         updated_at: new Date().toISOString()
       })
 
@@ -377,7 +501,7 @@ export const useChatStore = defineStore('chat', () => {
 
     try {
       // Update the message content
-      await db.updateMessage(id, { content: newContent })
+      await axiosDb.updateMessage(id, { content: newContent })
       const messageIndex = messages.value.findIndex(m => m.id === id)
       if (messageIndex !== -1) {
         messages.value[messageIndex] = {
@@ -420,7 +544,7 @@ export const useChatStore = defineStore('chat', () => {
                 metadata: {}
               }
 
-              const savedAssistantMessage = await db.createMessage(assistantMessage)
+              const savedAssistantMessage = await axiosDb.createMessage(assistantMessage)
               const newMessageIndex = messages.value.length
               messages.value.push(savedAssistantMessage)
 
@@ -470,7 +594,7 @@ export const useChatStore = defineStore('chat', () => {
 
               // Update the message in the database
               if (fullContent) {
-                await db.updateMessage(savedAssistantMessage.id, { content: fullContent })
+                await axiosDb.updateMessage(savedAssistantMessage.id, { content: fullContent })
               }
             }
           } finally {
@@ -561,7 +685,7 @@ export const useChatStore = defineStore('chat', () => {
 
       // Update the message in the database
       if (fullContent) {
-        await db.updateMessage(id, { content: fullContent })
+        await axiosDb.updateMessage(id, { content: fullContent })
       } else {
         throw new Error('No response content generated during regeneration')
       }
@@ -577,7 +701,7 @@ export const useChatStore = defineStore('chat', () => {
 
   async function deleteMessage(id: string) {
     try {
-      await db.deleteMessage(id)
+      await axiosDb.deleteMessage(id)
       messages.value = messages.value.filter(m => m.id !== id)
     } catch (err: any) {
       error.value = err.message || 'Failed to delete message'
@@ -594,10 +718,21 @@ export const useChatStore = defineStore('chat', () => {
     error.value = null
   }
 
-  // Refresh conversations and current state
+  // Enhanced refresh state with robust connection handling
   async function refreshState() {
     try {
       console.log('🔄 Refreshing chat state...')
+
+      // First check and refresh database connection
+      console.log('🔍 Checking database connection...')
+      const isConnected = await checkSupabaseConnection()
+      if (!isConnected) {
+        console.log('🔄 Database connection unhealthy, refreshing session...')
+        await refreshSupabaseSession()
+
+        // Wait a moment for connection to stabilize
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      }
 
       const authStore = useAuthStore()
       if (!authStore.isAuthenticated) {
@@ -608,21 +743,39 @@ export const useChatStore = defineStore('chat', () => {
         return
       }
 
-      // Reload conversations if we don't have any
-      if (conversations.value.length === 0) {
-        console.log('🔄 No conversations loaded, reloading...')
-        await loadConversations()
+      // Clear any previous errors
+      error.value = null
+
+      // Reload conversations with retry logic
+      try {
+        if (conversations.value.length === 0) {
+          console.log('🔄 No conversations loaded, reloading...')
+          await loadConversations()
+        } else {
+          console.log('🔄 Refreshing existing conversations...')
+          await loadConversations()
+        }
+      } catch (convError) {
+        console.error('❌ Failed to load conversations during refresh:', convError)
+        // Don't throw here, continue with other refresh operations
       }
 
       // Reload messages for current conversation if needed
-      if (currentConversation.value && messages.value.length === 0) {
-        console.log('🔄 Current conversation has no messages, reloading...')
-        await selectConversation(currentConversation.value)
+      if (currentConversation.value) {
+        try {
+          console.log('🔄 Refreshing current conversation messages...')
+          await selectConversation(currentConversation.value)
+        } catch (msgError) {
+          console.error('❌ Failed to reload messages during refresh:', msgError)
+          // Don't throw here, just log the error
+        }
       }
 
       console.log('✅ Chat state refreshed successfully')
-    } catch (error) {
-      console.error('❌ Failed to refresh chat state:', error)
+    } catch (refreshError: any) {
+      console.error('❌ Failed to refresh chat state:', refreshError)
+      // Set a user-friendly error message
+      error.value = 'Connection lost. Please check your internet connection and try again.'
     }
   }
 
