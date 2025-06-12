@@ -22,6 +22,9 @@ CREATE TABLE conversations (
   model_provider TEXT NOT NULL,
   model_name TEXT NOT NULL,
   system_prompt TEXT,
+  is_shared BOOLEAN DEFAULT FALSE,
+  share_id UUID UNIQUE,
+  shared_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -43,6 +46,7 @@ CREATE POLICY "Users can insert own profile" ON users FOR INSERT WITH CHECK (aut
 
 -- RLS Policies for conversations table
 CREATE POLICY "Users can view own conversations" ON conversations FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can view shared conversations" ON conversations FOR SELECT USING (is_shared = true);
 CREATE POLICY "Users can create conversations" ON conversations FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update own conversations" ON conversations FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete own conversations" ON conversations FOR DELETE USING (auth.uid() = user_id);
@@ -50,6 +54,9 @@ CREATE POLICY "Users can delete own conversations" ON conversations FOR DELETE U
 -- RLS Policies for messages table
 CREATE POLICY "Users can view messages in own conversations" ON messages FOR SELECT USING (
   EXISTS (SELECT 1 FROM conversations WHERE conversations.id = messages.conversation_id AND conversations.user_id = auth.uid())
+);
+CREATE POLICY "Users can view messages in shared conversations" ON messages FOR SELECT USING (
+  EXISTS (SELECT 1 FROM conversations WHERE conversations.id = messages.conversation_id AND conversations.is_shared = true)
 );
 CREATE POLICY "Users can create messages in own conversations" ON messages FOR INSERT WITH CHECK (
   EXISTS (SELECT 1 FROM conversations WHERE conversations.id = messages.conversation_id AND conversations.user_id = auth.uid())
@@ -69,6 +76,8 @@ ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 -- Indexes for performance
 CREATE INDEX conversations_user_id_idx ON conversations(user_id);
 CREATE INDEX conversations_updated_at_idx ON conversations(updated_at DESC);
+CREATE INDEX conversations_share_id_idx ON conversations(share_id) WHERE share_id IS NOT NULL;
+CREATE INDEX conversations_is_shared_idx ON conversations(is_shared) WHERE is_shared = true;
 CREATE INDEX messages_conversation_id_idx ON messages(conversation_id);
 CREATE INDEX messages_created_at_idx ON messages(created_at);
 
@@ -107,3 +116,33 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
 
 CREATE TRIGGER update_conversations_updated_at BEFORE UPDATE ON conversations
     FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+
+
+-- new schema
+-- Add sharing columns to existing conversations table
+ALTER TABLE conversations 
+ADD COLUMN IF NOT EXISTS is_shared BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS share_id UUID UNIQUE,
+ADD COLUMN IF NOT EXISTS shared_at TIMESTAMP WITH TIME ZONE;
+
+-- Create indexes for performance
+CREATE INDEX IF NOT EXISTS idx_conversations_share_id ON conversations(share_id) WHERE share_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_conversations_shared ON conversations(is_shared) WHERE is_shared = TRUE;
+
+-- Add RLS policy to allow public read access to shared conversations
+CREATE POLICY "Allow public read access to shared conversations" ON conversations
+FOR SELECT USING (is_shared = TRUE);
+
+-- Add RLS policy to allow public read access to messages of shared conversations
+CREATE POLICY "Allow public read access to messages of shared conversations" ON messages
+FOR SELECT USING (
+  conversation_id IN (
+    SELECT id FROM conversations WHERE is_shared = TRUE
+  )
+);
+
+-- Comments for documentation
+COMMENT ON COLUMN conversations.is_shared IS 'Whether this conversation is publicly shared';
+COMMENT ON COLUMN conversations.share_id IS 'Unique identifier for sharing this conversation';
+COMMENT ON COLUMN conversations.shared_at IS 'Timestamp when the conversation was first shared';
