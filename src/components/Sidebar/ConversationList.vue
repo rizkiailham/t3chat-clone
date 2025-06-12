@@ -31,7 +31,7 @@
             isSelected(conversation)
               ? 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 border border-blue-200/50 dark:border-blue-700/50 shadow-lg'
               : 'hover:bg-white/50 dark:hover:bg-gray-700/50 hover:shadow-md',
-            collapsed ? 'p-3 justify-center' : 'p-4'
+            collapsed ? 'justify-center' : 'p-4'
           ]"
         >
           <!-- Collapsed state - show only avatar/icon -->

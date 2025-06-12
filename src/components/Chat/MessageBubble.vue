@@ -101,6 +101,7 @@
           >
             <ClipboardIcon class="w-3.5 h-3.5" />
           </button>
+
           <button
             v-if="!isUser"
             @click="regenerateMessage"
@@ -200,8 +201,11 @@ const formattedContent = computed(() => {
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     // Inline code (only if not already in a code block)
     .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
-    // Line breaks
-    .replace(/\n/g, '<br>')
+    // Line breaks: Replace one or more newlines with a single <br>
+    .replace(/\n+/g, '<br>') // <--- CHANGED THIS LINE
+    // Ensure no leading/trailing <br> if the content starts/ends with newlines
+    .replace(/^(<br>)+|(<br>)+$/g, ''); // <--- OPTIONAL: Add this to clean up leading/trailing breaks
+
 
   return content
 })
@@ -300,65 +304,120 @@ function regenerateMessage() {
   color: inherit;
 }
 
-/* Modern Code block styling */
-:deep(.code-block-container) {
-  margin: 1.5rem 0;
-  border-radius: 1rem;
-  overflow: hidden;
-  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-  border: 1px solid #374151;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+/* Gemini-like Code block styling */
+:deep(.gemini-code-block) {
+  border-bottom-right-radius: 12px;
+  border-bottom-left-radius: 12px;
+
+  overflow-y: auto;
+  background: #282A2C;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   transition: all 0.2s ease;
 }
 
-:deep(.code-block-container:hover) {
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4);
+:deep(.dark .gemini-code-block) {
+  background: #1f2937;
+  border-color: #374151;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+:deep(.gemini-code-block:hover) {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   transform: translateY(-1px);
 }
 
-:deep(.code-block-header) {
+:deep(.dark .gemini-code-block:hover) {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+:deep(.gemini-code-header) {
+  margin-top: 20px;
+  margin-bottom: -20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 1.25rem;
-  background: linear-gradient(135deg, #2d2d2d 0%, #3a3a3a 100%);
-  border-bottom: 1px solid #4a5568;
+  background: #f1f3f4;
+  border-top-right-radius: 12px;
+  border-top-left-radius: 12px;
+  overflow-y: auto;
+  background: #282A2C;
 }
 
-:deep(.code-language) {
-  font-size: 0.75rem;
-  color: #a0aec0;
-  text-transform: uppercase;
-  font-weight: 600;
-  letter-spacing: 0.05em;
+:deep(.dark .gemini-code-header) {
+  background: #374151;
+  border-bottom-color: #4b5563;
 }
 
-:deep(.copy-code-btn) {
-  padding: 0.5rem;
-  color: #9ca3af;
-  background: rgba(255, 255, 255, 0.05);
-  border: none;
-  border-radius: 0.5rem;
+:deep(.gemini-code-info) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+:deep(.gemini-code-icon) {
+  font-size: 16px;
+  line-height: 1;
+}
+
+
+:deep(.gemini-copy-btn) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: white;
+  background: transparent;
   cursor: pointer;
   transition: all 0.2s ease;
-  backdrop-filter: blur(8px);
+  font-size: 12px;
+  font-weight: 500;
+  width: 80px;
+  height: 40px;
 }
 
-:deep(.copy-code-btn:hover) {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.1);
-  transform: scale(1.05);
+:deep(.dark .gemini-copy-btn) {
+  color: #9ca3af;
+  border-color: #6b7280;
 }
 
-:deep(.code-block) {
+:deep(.gemini-copy-btn:hover) {
+  border-color: #1a73e8;
+  color: #1a73e8;
+}
+
+:deep(.dark .gemini-copy-btn:hover) {
+  background: #1e3a8a;
+  border-color: #3b82f6;
+  color: #93c5fd;
+}
+
+:deep(.gemini-copy-btn.copied) {
+  border-color: #34a853;
+  color: #34a853;
+}
+
+:deep(.dark .gemini-copy-btn.copied) {
+  background: #064e3b;
+  border-color: #10b981;
+  color: #6ee7b7;
+}
+
+:deep(.gemini-code-content) {
+  background: #282A2C;
+  overflow: hidden;
+}
+
+:deep(.dark .gemini-code-content) {
+  background: #282A2C;
+}
+
+:deep(.gemini-code-pre) {
   margin: 0;
-  padding: 1.5rem;
-  background: #1a1a1a;
+  padding: 20px;
+  background: transparent;
   overflow-x: auto;
-  font-family: var(--font-family-mono);
-  font-size: 0.875rem;
-  line-height: 1.6;
-  color: #e5e7eb;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', monospace;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 /* Syntax highlighting colors - ensure inline styles work */

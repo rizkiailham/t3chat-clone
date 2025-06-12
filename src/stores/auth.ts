@@ -71,30 +71,60 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function initializeAuth() {
     try {
+      console.log('🔐 Initializing authentication...')
+
       // Get initial session first
       const currentSession = await getSession()
 
       if (currentSession) {
+        console.log('✅ Found existing session')
         await getCurrentUser()
+      } else {
+        console.log('❌ No existing session found')
       }
 
       // Then listen to auth state changes
       authService.onAuthStateChange(async (event, newSession) => {
-        console.log('Auth state change:', event, !!newSession)
+        console.log('🔐 Auth state change:', event, !!newSession)
         session.value = newSession
 
         if (event === 'SIGNED_IN' && newSession) {
+          console.log('✅ User signed in')
           await getCurrentUser()
         } else if (event === 'SIGNED_OUT') {
+          console.log('❌ User signed out')
           user.value = null
           session.value = null
         } else if (event === 'TOKEN_REFRESHED' && newSession) {
-          // Handle token refresh
+          console.log('🔄 Token refreshed')
           await getCurrentUser()
         }
       })
+
+      console.log('✅ Authentication initialized successfully')
     } catch (error) {
-      console.error('Failed to initialize auth:', error)
+      console.error('❌ Failed to initialize auth:', error)
+    }
+  }
+
+  // Add method to refresh authentication state
+  async function refreshAuth() {
+    try {
+      console.log('🔄 Refreshing authentication state...')
+
+      const currentSession = await getSession()
+      if (currentSession) {
+        await getCurrentUser()
+        console.log('✅ Authentication refreshed successfully')
+      } else {
+        console.log('❌ No session found during refresh')
+        user.value = null
+        session.value = null
+      }
+    } catch (error) {
+      console.error('❌ Failed to refresh auth:', error)
+      user.value = null
+      session.value = null
     }
   }
 
@@ -118,6 +148,7 @@ export const useAuthStore = defineStore('auth', () => {
     getCurrentUser,
     getSession,
     initializeAuth,
+    refreshAuth,
     clearError
   }
 })

@@ -144,29 +144,63 @@ export function detectLanguage(code: string): string {
 }
 
 export function formatCodeBlock(content: string): string {
-  // Enhanced code block detection and formatting
+  // Enhanced code block detection and formatting with Gemini-like styling
   return content.replace(
     /```(\w+)?\n?([\s\S]*?)```/g,
     (_match, language, code) => {
       const detectedLanguage = language || detectLanguage(code)
       const highlightedCode = highlightCode(code.trim(), detectedLanguage)
-      const languageColor = LANGUAGE_COLORS[detectedLanguage] || '#666666'
+      const languageColor = LANGUAGE_COLORS[detectedLanguage] || '#8b5cf6'
+      const languageIcon = getLanguageIcon(detectedLanguage)
 
-
-
-      return `<div class="code-block-container">
-        <div class="code-block-header">
-          <span class="code-language" style="color: ${languageColor};">${detectedLanguage}</span>
-          <button class="copy-code-btn" onclick="copyCodeBlock(this)" title="Copy code">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-            </svg>
+      return `
+      <div class="gemini-code-container">
+        <div class="gemini-code-header">
+          <div class="w-full gemini-code-info">
+            <div class="gemini-code-icon">${languageIcon}</div>
+            <span class="gemini-code-language">${detectedLanguage.toUpperCase()}</span>
+          </div>
+          <button class="gemini-copy-btn" onclick="copyCodeBlock(this)" title="Copy code">
+            <span class="copy-text">Copy 📋</span>
           </button>
         </div>
-        <pre class="code-block"><code class="language-${detectedLanguage}">${highlightedCode}</code></pre>
+        <div class="gemini-code-block"> 
+          <div class="gemini-code-content">
+            <pre class="gemini-code-pre"><code class="language-${detectedLanguage}">${highlightedCode}</code></pre>
+          </div>
+        </div>
       </div>`
     }
   )
+}
+
+function getLanguageIcon(language: string): string {
+  const icons: Record<string, string> = {
+    javascript: '🟨',
+    typescript: '🔷',
+    python: '🐍',
+    java: '☕',
+    csharp: '🔷',
+    cpp: '⚡',
+    c: '🔧',
+    php: '🐘',
+    ruby: '💎',
+    go: '🐹',
+    rust: '🦀',
+    swift: '🍎',
+    kotlin: '🎯',
+    scala: '⚖️',
+    sql: '🗃️',
+    json: '📋',
+    yaml: '📄',
+    markdown: '📝',
+    bash: '💻',
+    css: '🎨',
+    html: '🌐',
+    xml: '📄',
+    text: '📄'
+  }
+  return icons[language] || '📄'
 }
 
 // Global function for copying code blocks
@@ -178,19 +212,34 @@ declare global {
 
 if (typeof window !== 'undefined') {
   window.copyCodeBlock = function(button: HTMLElement) {
-    const codeBlock = button.closest('.code-block-container')?.querySelector('code')
+    const codeBlock = button.closest('.gemini-code-container')?.querySelector('code')
     if (codeBlock) {
       const text = codeBlock.textContent || ''
       navigator.clipboard.writeText(text).then(() => {
+        const copyText = button.querySelector('.copy-text')
         const originalText = button.innerHTML
+
+        // Show success state
         button.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-        </svg>`
+        </svg>
+        <span class="copy-text">Copied!</span>`
+
+        button.classList.add('copied')
+
         setTimeout(() => {
           button.innerHTML = originalText
+          button.classList.remove('copied')
         }, 2000)
       }).catch(err => {
         console.error('Failed to copy code:', err)
+        const copyText = button.querySelector('.copy-text')
+        if (copyText) {
+          copyText.textContent = 'Failed'
+          setTimeout(() => {
+            copyText.textContent = 'Copy'
+          }, 2000)
+        }
       })
     }
   }

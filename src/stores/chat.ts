@@ -87,7 +87,6 @@ export const useChatStore = defineStore('chat', () => {
       const data = await db.getMessages(conversation.id)
       messages.value = [...data] // Force reactivity with spread operator
 
-      console.log('Loaded messages:', data.length, 'for conversation:', conversation.title)
     } catch (err: any) {
       console.error('Failed to select conversation:', err)
       error.value = err.message || 'Failed to load conversation'
@@ -595,6 +594,38 @@ export const useChatStore = defineStore('chat', () => {
     error.value = null
   }
 
+  // Refresh conversations and current state
+  async function refreshState() {
+    try {
+      console.log('🔄 Refreshing chat state...')
+
+      const authStore = useAuthStore()
+      if (!authStore.isAuthenticated) {
+        console.log('❌ User not authenticated, clearing chat state')
+        conversations.value = []
+        currentConversation.value = null
+        messages.value = []
+        return
+      }
+
+      // Reload conversations if we don't have any
+      if (conversations.value.length === 0) {
+        console.log('🔄 No conversations loaded, reloading...')
+        await loadConversations()
+      }
+
+      // Reload messages for current conversation if needed
+      if (currentConversation.value && messages.value.length === 0) {
+        console.log('🔄 Current conversation has no messages, reloading...')
+        await selectConversation(currentConversation.value)
+      }
+
+      console.log('✅ Chat state refreshed successfully')
+    } catch (error) {
+      console.error('❌ Failed to refresh chat state:', error)
+    }
+  }
+
   return {
     // State
     conversations,
@@ -603,11 +634,11 @@ export const useChatStore = defineStore('chat', () => {
     loading,
     streaming,
     error,
-    
+
     // Getters
     hasConversations,
     currentMessages,
-    
+
     // Actions
     loadConversations,
     createConversation,
@@ -620,6 +651,7 @@ export const useChatStore = defineStore('chat', () => {
     regenerateMessage,
     deleteMessage,
     clearCurrentConversation,
-    clearError
+    clearError,
+    refreshState
   }
 })

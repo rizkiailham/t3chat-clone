@@ -1,48 +1,45 @@
 <template>
-  <div class="p-4 lg:p-6 glass border-t border-white/10 dark:border-gray-700/50 backdrop-blur-xl flex-shrink-0">
-    <div class="max-w-4xl mx-auto">
-      <div class="relative">
-        <!-- Text Area -->
-        <textarea
-          ref="textareaRef"
-          v-model="message"
-          @keydown="handleKeydown"
-          @input="adjustHeight"
-          :disabled="disabled"
-          placeholder="Type your message... (Shift+Enter for new line, Enter to send)"
-          class="w-full resize-none rounded-2xl border border-gray-200/50 dark:border-gray-600/50 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm px-6 py-4 pr-16 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
-          :class="{ 'min-h-[56px]': true }"
-          rows="1"
-        ></textarea>
+  <div class="w-full">
+    <div class="relative">
+      <!-- Text Area -->
+      <textarea
+        ref="textareaRef"
+        v-model="message"
+        @keydown="handleKeydown"
+        @input="adjustHeight"
+        :disabled="disabled"
+        placeholder="Message the AI..."
+        class="w-full resize-none max-h-[60px] border-0 bg-transparent pt-4 pr-16 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+        :class="{ 'min-h-[56px]': true }"
+        rows="1"
+      ></textarea>
 
-        <!-- Send Button -->
-        <button
-          @click="sendMessage"
-          :disabled="!canSend"
-          class="absolute right-3 bottom-3 p-3 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95"
-          :class="canSend
-            ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-blue-800'
-            : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'"
-        >
-          <PaperAirplaneIcon class="w-5 h-5" />
-        </button>
-      </div>
+      <!-- Send Button -->
+      <button
+        @click="sendMessage"
+        :disabled="!canSend"
+        class="absolute right-3 bottom-3 p-3 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95"
+        :class="canSend
+          ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-blue-800'
+          : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'"
+      >
+        <PaperAirplaneIcon class="w-5 h-5" />
+      </button>
+    </div>
 
-      <!-- Character count and shortcuts -->
-      <div class="mt-4 flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+    <!-- Character count and shortcuts -->
+    <div class="flex items-center justify-start text-sm text-gray-500 dark:text-gray-400">
+        
+
+        <div class="flex items-center space-x-2">
         <div class="flex items-center space-x-6">
-          <span class="font-medium" :class="{ 'text-red-500': message.length > 3800 }">
-            {{ message.length }}/4000
-          </span>
           <span class="hidden sm:inline text-xs opacity-75">
             Shift+Enter for new line • Enter to send
           </span>
         </div>
-
-        <div class="flex items-center space-x-2">
           <!-- Attachment button (future feature) -->
           <button
-            class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 opacity-50 cursor-not-allowed"
+            class="sm:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 opacity-50 cursor-not-allowed"
             title="Attachments (coming soon)"
             disabled
           >
@@ -50,21 +47,20 @@
           </button>
 
           <!-- Voice input button (future feature) -->
-          <button
+          <!-- <button
             class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 opacity-50 cursor-not-allowed"
             title="Voice input (coming soon)"
             disabled
           >
             <MicrophoneIcon class="w-4 h-4" />
-          </button>
+          </button> -->
         </div>
       </div>
     </div>
-  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { 
   PaperAirplaneIcon, 
   PaperClipIcon, 
@@ -92,10 +88,33 @@ const canSend = computed(() => {
   return message.value.trim().length > 0 && !props.disabled && message.value.length <= 4000
 })
 
+// Browser focus handlers
+let focusHandler: (() => void) | null = null
+
 onMounted(() => {
+  console.log('🚀 ChatInput mounted')
+
   // Focus the textarea when component mounts
   if (textareaRef.value) {
     textareaRef.value.focus()
+  }
+
+  // Add focus handler to re-focus when window becomes active
+  focusHandler = () => {
+    console.log('🎯 Window focused, re-focusing chat input')
+    if (textareaRef.value && !props.disabled) {
+      textareaRef.value.focus()
+    }
+  }
+
+  window.addEventListener('focus', focusHandler)
+  console.log('✅ ChatInput focus handler added')
+})
+
+onUnmounted(() => {
+  console.log('🧹 ChatInput unmounting, cleaning up')
+  if (focusHandler) {
+    window.removeEventListener('focus', focusHandler)
   }
 })
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 import { RouterView } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import { useSettingsStore } from './stores/settings'
@@ -7,12 +7,52 @@ import { useSettingsStore } from './stores/settings'
 const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
 
+// Global browser state handlers
+let visibilityChangeHandler: (() => void) | null = null
+let beforeUnloadHandler: (() => void) | null = null
+
 onMounted(() => {
+  console.log('🚀 App mounted - initializing global state management')
+
   // Initialize authentication
   authStore.initializeAuth()
 
   // Initialize settings
   settingsStore.initializeSettings()
+
+  // Add global visibility change handler
+  visibilityChangeHandler = () => {
+    console.log('👁️ Global visibility changed:', document.visibilityState)
+    if (document.visibilityState === 'visible') {
+      console.log('🔄 App became visible, refreshing global state...')
+      // Refresh auth state when app becomes visible
+      authStore.refreshAuth()
+    }
+  }
+
+  // Add beforeunload handler to save state
+  beforeUnloadHandler = () => {
+    console.log('💾 App unloading, saving state...')
+    // Settings are automatically saved via localStorage
+  }
+
+  // Add event listeners
+  document.addEventListener('visibilitychange', visibilityChangeHandler)
+  window.addEventListener('beforeunload', beforeUnloadHandler)
+
+  console.log('✅ Global event listeners added')
+})
+
+onUnmounted(() => {
+  console.log('🧹 App unmounting, cleaning up global event listeners')
+
+  // Remove event listeners
+  if (visibilityChangeHandler) {
+    document.removeEventListener('visibilitychange', visibilityChangeHandler)
+  }
+  if (beforeUnloadHandler) {
+    window.removeEventListener('beforeunload', beforeUnloadHandler)
+  }
 })
 </script>
 
