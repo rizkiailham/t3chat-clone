@@ -31,6 +31,8 @@ export interface Message {
     model?: string
     tokens?: number
     finish_reason?: string
+    files?: number // Number of files attached
+    [key: string]: any // Allow additional metadata
   }
 }
 
@@ -51,9 +53,17 @@ export interface LLMModel {
   output_cost_per_token?: number
 }
 
+export interface FileAttachment {
+  file: File
+  type: 'image' | 'pdf'
+  base64: string
+  content?: string
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
   content: string
+  files?: FileAttachment[]
 }
 
 export interface ChatRequest {
@@ -63,6 +73,7 @@ export interface ChatRequest {
   stream?: boolean
   temperature?: number
   max_tokens?: number
+  files?: FileAttachment[]
 }
 
 export interface ChatResponse {

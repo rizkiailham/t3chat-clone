@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import { checkSupabaseConnection, refreshSupabaseSession } from '../services/supabase'
 import { axiosDb } from '../services/axios-db'
 import { LLMService } from '../services/llm.service'
-import type { Conversation, Message, ChatMessage } from '../types'
+import type { Conversation, Message, ChatMessage, FileAttachment } from '../types'
 import { useAuthStore } from './auth'
 import router from '../router'
 
@@ -322,7 +322,7 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  async function sendMessage(content: string, stream: boolean = false) {
+  async function sendMessage(content: string, stream: boolean = false, files?: FileAttachment[]) {
     if (!currentConversation.value) {
       throw new Error('No conversation selected')
     }
@@ -331,13 +331,19 @@ export const useChatStore = defineStore('chat', () => {
       streaming.value = stream
       error.value = null
 
-      console.log('Sending message:', { content, stream, model: currentConversation.value.model_name })
+      console.log('Sending message:', {
+        content,
+        stream,
+        model: currentConversation.value.model_name,
+        fileCount: files?.length || 0
+      })
 
       // Add user message
       const userMessage = {
         conversation_id: currentConversation.value.id,
         role: 'user' as const,
         content,
+        metadata: files && files.length > 0 ? { files: files.length } : undefined
       }
 
       const savedUserMessage = await axiosDb.createMessage(userMessage)
@@ -346,7 +352,8 @@ export const useChatStore = defineStore('chat', () => {
       // Prepare messages for LLM
       const llmMessages: ChatMessage[] = messages.value.map(m => ({
         role: m.role,
-        content: m.content
+        content: m.content,
+        files: m.id === savedUserMessage.id ? files : undefined // Only add files to the current message
       }))
 
       console.log('LLM messages prepared:', llmMessages.length)
@@ -378,7 +385,8 @@ export const useChatStore = defineStore('chat', () => {
             messages: llmMessages,
             model: currentConversation.value.model_name,
             provider: currentConversation.value.model_provider,
-            stream: true
+            stream: true,
+            files
           })) {
             console.log('Received chunk:', chunk)
             fullContent += chunk
@@ -401,7 +409,8 @@ export const useChatStore = defineStore('chat', () => {
               messages: llmMessages,
               model: currentConversation.value.model_name,
               provider: currentConversation.value.model_provider,
-              stream: false
+              stream: false,
+              files
             })
 
             fullContent = response.choices[0].message.content
@@ -434,7 +443,8 @@ export const useChatStore = defineStore('chat', () => {
               messages: llmMessages,
               model: currentConversation.value.model_name,
               provider: currentConversation.value.model_provider,
-              stream: false
+              stream: false,
+              files
             })
 
             fullContent = response.choices[0].message.content
@@ -467,7 +477,8 @@ export const useChatStore = defineStore('chat', () => {
           messages: llmMessages,
           model: currentConversation.value.model_name,
           provider: currentConversation.value.model_provider,
-          stream: false
+          stream: false,
+          files
         })
 
         const assistantMessage = {

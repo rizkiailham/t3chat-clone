@@ -227,8 +227,8 @@
               </div>
             </div>
 
-            <!-- Messages Area (Normal Scrollable) -->
-            <div ref="messagesContainer" class="flex-1 overflow-y-auto max-h-chat space-y-4 min-h-0">
+            <!-- Messages Area (Dynamic Height) -->
+            <div ref="messagesContainer" class="flex-1 overflow-y-auto space-y-4 min-h-0" :style="messagesContainerStyle">
               <MessageBubble
                 v-for="message in chatStore.messages"
                 :key="message.id"
@@ -240,11 +240,12 @@
             </div>
 
             <!-- Floating Chat Input Container -->
-            <div class="relative py-1">
+            <div class="relative py-1 pb-4 mb-4" style="min-height: 120px;">
               <div class="gemini-floating-input">
                 <ChatInput
                   :key="`chat-input-${componentKey}`"
                   @send="handleSendMessage"
+                  @height-change="handleInputHeightChange"
                   :disabled="chatStore.streaming"
                 />
               </div>
@@ -331,6 +332,7 @@ import MessageBubble from './MessageBubble.vue'
 import ChatInput from './ChatInput.vue'
 import NewChatModal from '../Modals/NewChatModal.vue'
 import SettingsModal from '../Modals/SettingsModal.vue'
+import type { FileAttachment } from '../../types'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -359,6 +361,27 @@ const windowWidth = _windowWidth;
 const isMobile = computed(() => {
   console.log(windowWidth.value < 1024);
   return windowWidth.value < 1024;
+});
+
+// Track input height for dynamic layout
+const inputHeight = ref(0) // Default minimum height
+
+// Dynamic height calculation for messages container
+const messagesContainerStyle = computed(() => {
+  // Account for input area height plus padding and margins
+  const inputAreaHeight = inputHeight.value + 90 // Add extra padding for floating container
+
+  if (isMobile.value) {
+    // On mobile, account for more space for the input area
+    return {
+      maxHeight: `calc(100vh - ${Math.max(260, inputAreaHeight + 100)}px)`
+    }
+  } else {
+    // On desktop, account for the floating input and header
+    return {
+      maxHeight: `calc(100vh - ${Math.max(290, inputAreaHeight + 100)}px)`
+    }
+  }
 });
 
 // Watch for route changes to handle conversation navigation
@@ -565,9 +588,12 @@ watch(() => chatStore.currentConversation, (newConv, oldConv) => {
   }
 })
 
-async function handleSendMessage(content: string) {
+async function handleSendMessage(content: string, files?: FileAttachment[]) {
   try {
-    console.log('🚀 ChatInterface: Handling send message:', content)
+    console.log('🚀 ChatInterface: Handling send message:', {
+      content,
+      fileCount: files?.length || 0
+    })
 
     // Clear any existing errors
     chatStore.clearError()
@@ -603,7 +629,7 @@ async function handleSendMessage(content: string) {
     }
 
     console.log('✅ All validations passed, sending message to chat store...')
-    await chatStore.sendMessage(content, true)
+    await chatStore.sendMessage(content, true, files)
     console.log('✅ Message sent successfully')
 
   } catch (error: any) {
@@ -672,6 +698,16 @@ async function handleCreateConversation(data: { title: string; provider: string;
       chatStore.error = error.message || 'Failed to create conversation. Please try again.'
     }
   }
+}
+
+function handleInputHeightChange(height: number) {
+  inputHeight.value = height
+  // Scroll to bottom when input height changes to maintain view
+  nextTick(() => {
+    if (messagesContainer.value) {
+      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+    }
+  })
 }
 
 function handleConversationSelected() {
@@ -1008,6 +1044,10 @@ function testConversationSelection() {
   transition: all 0.3s ease;
   max-width: 1200px;
   margin: 0 auto;
+  /* Ensure input grows upward by anchoring to bottom */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .dark .gemini-floating-input {
@@ -1036,16 +1076,10 @@ function testConversationSelection() {
     border-radius: 16px;
     padding: 12px;
     margin: 0 8px;
-  }
-
-  .max-h-chat {
-    max-height: calc(100vh - 230px)!important;
+    /* Extra bottom margin on mobile to prevent browser overlap */
+    margin-bottom: 16px;
   }
 }
 
-@media (min-width: 768px) {
-  .max-h-chat {
-    max-height: calc(100vh - 290px)!important;
-  }
-}
+/* Remove old max-h-chat classes since we're using dynamic height */
 </style>

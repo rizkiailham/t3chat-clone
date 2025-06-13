@@ -1,4 +1,5 @@
 import type { ChatRequest, ChatResponse, LLMProvider, LLMModel, Message } from '../types'
+import type { FileUploadResult } from './file-upload.service'
 
 export class LLMService {
   private providers: LLMProvider[] = [
@@ -81,7 +82,7 @@ export class LLMService {
   }
 
   async sendMessage(request: ChatRequest): Promise<ChatResponse> {
-    const { provider, model, messages, stream = false, temperature = 0.7, max_tokens = 4000 } = request
+    const { provider, model, messages, stream = false, temperature = 0.7, max_tokens = 4000, files } = request
 
     // Check if we're in demo mode (no API keys configured)
     const openaiKey = import.meta.env.VITE_OPENAI_API_KEY
@@ -109,7 +110,7 @@ export class LLMService {
             console.log('OpenAI key not available, falling back to demo')
             return this.sendDemoMessage(request)
           }
-          return this.sendOpenAIMessage({ model, messages, stream, temperature, max_tokens })
+          return this.sendOpenAIMessage({ model, messages, stream, temperature, max_tokens, files })
         case 'anthropic':
           if (!anthropicKey) {
             console.log('Anthropic key not available, falling back to demo')
@@ -121,7 +122,7 @@ export class LLMService {
             console.log('Google key not available, falling back to demo')
             return this.sendDemoMessage(request)
           }
-          return this.sendGoogleMessage({ model, messages, stream, temperature, max_tokens })
+          return this.sendGoogleMessage({ model, messages, stream, temperature, max_tokens, files })
         default:
           console.log(`Unknown provider ${provider}, using demo mode`)
           return this.sendDemoMessage(request)
@@ -134,7 +135,7 @@ export class LLMService {
   }
 
   async *streamMessage(request: ChatRequest): AsyncGenerator<string, void, unknown> {
-    const { provider, model, messages, temperature = 0.7, max_tokens = 4000 } = request
+    const { provider, model, messages, temperature = 0.7, max_tokens = 4000, files } = request
 
     // Check if we're in demo mode (no API keys configured)
     const openaiKey = import.meta.env.VITE_OPENAI_API_KEY
@@ -158,7 +159,7 @@ export class LLMService {
             yield* this.streamDemoMessage(request)
             return
           }
-          yield* this.streamOpenAIMessage({ model, messages, temperature, max_tokens })
+          yield* this.streamOpenAIMessage({ model, messages, temperature, max_tokens, files })
           break
         case 'anthropic':
           if (!anthropicKey) {
@@ -174,7 +175,7 @@ export class LLMService {
             yield* this.streamDemoMessage(request)
             return
           }
-          yield* this.streamGoogleMessage({ model, messages, temperature, max_tokens })
+          yield* this.streamGoogleMessage({ model, messages, temperature, max_tokens, files })
           break
         default:
           console.log(`Unknown provider ${provider}, using demo streaming`)
@@ -194,9 +195,16 @@ export class LLMService {
       throw new Error('OpenAI API key not configured. Please add VITE_OPENAI_API_KEY to your .env file.')
     }
 
-    console.log('Sending OpenAI request:', { model: params.model, messageCount: params.messages.length })
+    console.log('Sending OpenAI request:', {
+      model: params.model,
+      messageCount: params.messages.length,
+      hasFiles: !!params.files?.length
+    })
 
     try {
+      // Format messages with file support
+      const formattedMessages = this.formatOpenAIMessages(params.messages, params.files)
+
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -205,10 +213,7 @@ export class LLMService {
         },
         body: JSON.stringify({
           model: params.model,
-          messages: params.messages.map((m: any) => ({
-            role: m.role,
-            content: m.content
-          })),
+          messages: formattedMessages,
           temperature: params.temperature || 0.7,
           max_tokens: params.max_tokens || 4000,
           stream: false
@@ -247,10 +252,7 @@ export class LLMService {
         },
         body: JSON.stringify({
           model: params.model,
-          messages: params.messages.map((m: any) => ({
-            role: m.role,
-            content: m.content
-          })),
+          messages: this.formatOpenAIMessages(params.messages, params.files),
           temperature: params.temperature || 0.7,
           max_tokens: params.max_tokens || 4000,
           stream: true
@@ -509,11 +511,15 @@ export class LLMService {
       throw new Error('Google API key not configured. Please add VITE_GOOGLE_API_KEY to your .env file.')
     }
 
-    console.log('Sending Google/Gemini request:', { model: params.model, messageCount: params.messages.length })
+    console.log('Sending Google/Gemini request:', {
+      model: params.model,
+      messageCount: params.messages.length,
+      hasFiles: !!params.files?.length
+    })
 
     try {
-      // Convert messages to Gemini format
-      const contents = this.convertToGeminiFormat(params.messages)
+      // Convert messages to Gemini format with file support
+      const contents = this.convertToGeminiFormat(params.messages, params.files)
 
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${params.model}:generateContent?key=${apiKey}`, {
         method: 'POST',
@@ -573,8 +579,8 @@ export class LLMService {
     console.log('Starting Google/Gemini stream:', { model: params.model, messageCount: params.messages.length })
 
     try {
-      // Convert messages to Gemini format
-      const contents = this.convertToGeminiFormat(params.messages)
+      // Convert messages to Gemini format with file support
+      const contents = this.convertToGeminiFormat(params.messages, params.files)
 
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${params.model}:streamGenerateContent?key=${apiKey}`, {
         method: 'POST',
@@ -652,10 +658,13 @@ export class LLMService {
     }
   }
 
-  private convertToGeminiFormat(messages: any[]): any[] {
+  private convertToGeminiFormat(messages: any[], files?: any[]): any[] {
     const contents = []
 
-    for (const message of messages) {
+    for (let i = 0; i < messages.length; i++) {
+      const message = messages[i]
+      const isLastMessage = i === messages.length - 1
+
       if (message.role === 'system') {
         // Gemini doesn't have system role, so we'll add it as user context
         contents.push({
@@ -663,13 +672,86 @@ export class LLMService {
           parts: [{ text: `System: ${message.content}` }]
         })
       } else {
+        const parts = [{ text: message.content }]
+
+        // Add files to the last user message
+        if (isLastMessage && message.role === 'user' && files && files.length > 0) {
+          files.forEach(file => {
+            if (file.type === 'image') {
+              // Extract base64 data without data URL prefix
+              const base64Data = file.base64.split(',')[1]
+              parts.push({
+                inline_data: {
+                  mime_type: file.file.type,
+                  data: base64Data
+                }
+              } as any) // Type assertion for Gemini API
+            } else if (file.type === 'pdf') {
+              // For PDFs, add as text description
+              parts.push({
+                text: `\n\n[PDF File: ${file.file.name}]\nPlease analyze this PDF document. Note: PDF content extraction is not yet implemented, but you can provide general guidance about PDF analysis.`
+              })
+            }
+          })
+        }
+
         contents.push({
           role: message.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: message.content }]
+          parts
         })
       }
     }
 
     return contents
+  }
+
+  /**
+   * Format messages for OpenAI API with file support
+   */
+  private formatOpenAIMessages(messages: any[], files?: any[]): any[] {
+    const formattedMessages = messages.map((m: any, index: number) => {
+      const isLastMessage = index === messages.length - 1
+      const message: any = {
+        role: m.role,
+        content: []
+      }
+
+      // Add text content
+      if (m.content) {
+        message.content.push({
+          type: 'text',
+          text: m.content
+        })
+      }
+
+      // Add file content if this is the last message and has files
+      if (isLastMessage && files && files.length > 0) {
+        files.forEach(file => {
+          if (file.type === 'image') {
+            message.content.push({
+              type: 'image_url',
+              image_url: {
+                url: file.base64
+              }
+            })
+          } else if (file.type === 'pdf') {
+            // For PDFs, add as text description
+            message.content.push({
+              type: 'text',
+              text: `\n\n[PDF File: ${file.file.name}]\nPlease analyze this PDF document. Note: PDF content extraction is not yet implemented, but you can provide general guidance about PDF analysis.`
+            })
+          }
+        })
+      }
+
+      // If only one text content, use string format for compatibility
+      if (message.content.length === 1 && message.content[0].type === 'text') {
+        message.content = message.content[0].text
+      }
+
+      return message
+    })
+
+    return formattedMessages
   }
 }

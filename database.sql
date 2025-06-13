@@ -113,3 +113,12 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
 
 CREATE TRIGGER update_conversations_updated_at BEFORE UPDATE ON conversations
     FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+-- Comments for documentation
+COMMENT ON TABLE users IS 'User profiles linked to Supabase Auth';
+COMMENT ON TABLE conversations IS 'Chat conversations with AI models';
+COMMENT ON TABLE messages IS 'Individual messages within conversations';
+COMMENT ON COLUMN conversations.is_shared IS 'Whether this conversation is publicly shared';
+COMMENT ON COLUMN conversations.share_id IS 'Unique identifier for sharing this conversation';
+COMMENT ON COLUMN conversations.shared_at IS 'Timestamp when the conversation was first shared';
+COMMENT ON COLUMN messages.metadata IS 'JSON metadata including file attachments, model info, tokens, etc.';
