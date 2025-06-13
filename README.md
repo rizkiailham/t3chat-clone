@@ -98,7 +98,7 @@ You'll also need accounts for:
 
 ```bash
 # Clone the repository
-git clone <your-repo-url>
+git clone https://github.com/your-username/t3chat-clone.git
 cd t3chat-clone
 
 # Install dependencies
@@ -133,86 +133,42 @@ VITE_APP_NAME=T3 Chat Clone
 VITE_APP_URL=http://localhost:5173
 ```
 
+> ⚠️ **Important**: Never commit your `.env` file to version control. It contains sensitive API keys.
+
 ### 3. Supabase Setup
 
 #### 3.1 Create Supabase Project
-1. Go to [supabase.com](https://supabase.com) and sign up/login
-2. Click "New Project"
-3. Choose your organization and enter project details
-4. Wait for the project to be ready (2-3 minutes)
-5. Go to Settings > API to get your URL and anon key
+1. **Go to Supabase**
+   - Visit [supabase.com](https://supabase.com) and sign up/login
+   - Click "New Project"
+   - Choose your organization and enter project details:
+     - **Name**: T3 Chat Clone (or your preferred name)
+     - **Database Password**: Create a strong password (save it!)
+     - **Region**: Choose closest to your location
+   - Click "Create new project"
+   - Wait for the project to be ready (2-3 minutes)
+
+2. **Get Your Project Credentials**
+   - Go to Settings > API
+   - Copy your **Project URL** (looks like: `https://abcdefgh.supabase.co`)
+   - Copy your **anon public** key (starts with `eyJ...`)
+   - Add these to your `.env` file
 
 #### 3.2 Database Schema Setup
-1. Navigate to the SQL Editor in your Supabase dashboard
-2. Copy the contents of `database.sql` file
-3. Paste and run the SQL script to create tables and policies
 
-#### 3.3 Authentication Configuration
-1. Go to Authentication > Settings in Supabase
-2. Scroll down to "Auth Providers"
-3. Enable Google provider
-4. Add your Google OAuth credentials (see next step)
+**Important**: Run this exact SQL script in your Supabase SQL Editor:
 
-### 4. Google OAuth Setup
+1. **Open SQL Editor**
+   - In your Supabase dashboard, click "SQL Editor" in the left sidebar
+   - Click "New Query"
 
-#### 4.1 Google Cloud Console Configuration
-1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. Create a new project or select an existing one
-3. Enable the Google+ API:
-   - Go to APIs & Services > Library
-   - Search for "Google+ API" and enable it
-4. Create OAuth 2.0 credentials:
-   - Go to APIs & Services > Credentials
-   - Click "Create Credentials" > "OAuth 2.0 Client IDs"
-   - Choose "Web application"
-   - Add authorized origins:
-     - `http://localhost:5173` (development)
-     - `https://your-domain.com` (production)
-   - Add authorized redirect URIs:
-     - `http://localhost:5173/auth/callback` (development)
-     - `https://your-domain.com/auth/callback` (production)
+2. **Copy and Paste This Complete Script**:
 
-#### 4.2 Supabase OAuth Configuration
-1. In Supabase, go to Authentication > Settings
-2. Under "Auth Providers", configure Google:
-   - Enable Google provider
-   - Add your Google Client ID
-   - Add your Google Client Secret
-   - Set redirect URL: `https://your-project.supabase.co/auth/v1/callback`
-
-### 5. Run the Application
-
-```bash
-# Start development server
-npm run dev
-
-# The app will be available at http://localhost:5173
-```
-
-### 6. Verify Setup
-
-1. Open your browser to `http://localhost:5173`
-2. Click "Sign in with Google"
-3. Complete the OAuth flow
-4. Create a new conversation
-5. Send a test message
-
-If everything is configured correctly, you should be able to:
-- ✅ Sign in with Google
-- ✅ Create conversations
-- ✅ Send messages (if API keys are configured)
-- ✅ View conversation history
-- ✅ Share conversations
-
-## 🗄️ Database Schema
-
-The application uses a PostgreSQL database hosted on Supabase with Row-Level Security (RLS) enabled. The complete schema is available in the `database.sql` file.
-
-### Core Tables
-
-#### Users Table
-Stores user profile information linked to Supabase Auth:
 ```sql
+-- T3 Chat Clone Database Setup
+-- Run this entire script in your Supabase SQL editor
+
+-- Users table
 CREATE TABLE users (
   id UUID REFERENCES auth.users(id) PRIMARY KEY,
   email TEXT NOT NULL,
@@ -221,11 +177,8 @@ CREATE TABLE users (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-```
 
-#### Conversations Table
-Stores chat conversations with sharing capabilities:
-```sql
+-- Conversations table
 CREATE TABLE conversations (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   title TEXT NOT NULL,
@@ -239,11 +192,8 @@ CREATE TABLE conversations (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-```
 
-#### Messages Table
-Stores individual messages within conversations:
-```sql
+-- Messages table
 CREATE TABLE messages (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
@@ -252,28 +202,213 @@ CREATE TABLE messages (
   metadata JSONB,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Enable RLS on all tables
+Import database schema from database.sql
+3. **Run the Script**
+   - Click the "Run" button
+   - You should see "Success. No rows returned" message
+   - Check the "Table Editor" to verify tables were created
+
+### 4. Google OAuth Setup
+
+**This is the most critical step - follow exactly to avoid authentication errors!**
+
+#### 4.1 Google Cloud Console Configuration
+
+1. **Create/Select Google Cloud Project**
+   - Go to [Google Cloud Console](https://console.cloud.google.com)
+   - Sign in with your Google account
+   - Create a new project or select an existing one
+   - Note your project name/ID
+
+2. **Enable Required APIs**
+   - Go to "APIs & Services" → "Library"
+   - Search for "Google+ API" and click on it
+   - Click "Enable" button
+   - Wait for it to be enabled
+
+3. **Configure OAuth Consent Screen** (Required!)
+   - Go to "APIs & Services" → "OAuth consent screen"
+   - Choose "External" user type
+   - Fill in required fields:
+     - **App name**: T3 Chat Clone
+     - **User support email**: Your email
+     - **Developer contact email**: Your email
+   - Click "Save and Continue"
+   - Skip "Scopes" and "Test users" for now
+   - Click "Back to Dashboard"
+
+4. **Create OAuth 2.0 Credentials**
+   - Go to "APIs & Services" → "Credentials"
+   - Click "Create Credentials" → "OAuth 2.0 Client IDs"
+   - Choose "Web application"
+   - Name it: "T3 Chat Clone"
+
+   **Authorized JavaScript origins** (Add these exactly):
+   ```
+   http://localhost:5173
+   https://your-project.supabase.co
+   ```
+
+   **Authorized redirect URIs** (Add this exactly):
+   ```
+   https://your-project.supabase.co/auth/v1/callback
+   ```
+
+   Replace `your-project` with your actual Supabase project reference (from your Supabase URL).
+
+5. **Copy Your Credentials**
+   - Copy the **Client ID** (ends with `.apps.googleusercontent.com`)
+   - Copy the **Client Secret**
+   - Save these securely!
+
+#### 4.2 Supabase OAuth Configuration
+
+1. **Enable Google Provider in Supabase**
+   - In your Supabase dashboard, go to "Authentication" → "Providers"
+   - Find "Google" in the list
+   - Toggle the switch to **Enable**
+
+2. **Configure Google Provider**
+   - **Client ID**: Paste your Google Client ID
+   - **Client Secret**: Paste your Google Client Secret
+   - **Redirect URL**: Should auto-fill as `https://your-project.supabase.co/auth/v1/callback`
+   - Click "Save"
+
+3. **Update Your Environment File**
+   ```env
+   VITE_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+   ```
+
+> ⚠️ **Common Error**: If you get "provider is not enabled" error, double-check that:
+> - Google provider is toggled ON in Supabase
+> - You clicked "Save" after entering credentials
+> - Your Client ID is correct in the `.env` file
+
+### 5. Run the Application
+
+```bash
+# Start development server
+npm run dev
+
+# The app will be available at http://localhost:5173
 ```
 
-### Security & Performance
+### 6. Test & Verify Setup
 
-- **Row-Level Security (RLS)**: Ensures users can only access their own data
-- **Optimized Indexes**: Fast queries for conversations and messages
-- **Cascade Deletes**: Automatic cleanup when conversations are deleted
-- **Sharing Policies**: Secure public access for shared conversations
+#### 6.1 Test Authentication
+1. **Open your browser** to `http://localhost:5173`
+2. **Click "Sign in with Google"**
+3. **Complete the OAuth flow**
+4. **Check for success**: You should be redirected back to the app and see your profile
 
-### Setup Instructions
+#### 6.2 Verify Database Integration
+1. **Check Supabase Dashboard**:
+   - Go to "Authentication" → "Users"
+   - You should see your user account listed
+   - Go to "Table Editor" → "users"
+   - You should see your user profile automatically created
 
-1. Copy the complete schema from `database.sql`
-2. Open Supabase SQL Editor
-3. Paste and execute the schema
-4. Verify tables and policies are created
+2. **Test App Functionality**:
+   - Create a new conversation
+   - Try sending a message (will work if you have API keys configured)
+   - Check conversation history
+   - Test conversation sharing
 
-The schema includes:
-- ✅ All table definitions
-- ✅ Row-Level Security policies
-- ✅ Performance indexes
-- ✅ Sharing functionality
-- ✅ Data validation constraints
+#### 6.3 Success Checklist
+If everything is working, you should be able to:
+- ✅ Sign in with Google without errors
+- ✅ See your user profile in Supabase
+- ✅ Create conversations
+- ✅ View conversation history
+- ✅ Share conversations
+- ✅ Send messages (if API keys are configured)
+
+## 🚨 Troubleshooting Common Issues
+
+### Issue 1: "provider is not enabled"
+**Cause**: Google OAuth not properly configured
+**Solution**:
+1. Verify Google provider is enabled in Supabase Authentication → Providers
+2. Check that Client ID and Secret are correctly entered
+3. Ensure you clicked "Save" in Supabase
+4. Restart your development server
+
+### Issue 2: "redirect_uri_mismatch"
+**Cause**: Redirect URI mismatch between Google Console and Supabase
+**Solution**:
+1. In Google Console, ensure redirect URI is exactly: `https://your-project.supabase.co/auth/v1/callback`
+2. Replace `your-project` with your actual Supabase project reference
+3. No trailing slashes or extra characters
+
+### Issue 3: Database connection errors
+**Cause**: Database schema not properly set up
+**Solution**:
+1. Re-run the complete SQL script from Step 3.2
+2. Check that all tables exist in Supabase Table Editor
+3. Verify RLS policies are enabled
+
+### Issue 4: "Failed to fetch" errors
+**Cause**: Environment variables not properly configured
+**Solution**:
+1. Double-check your `.env` file has correct values
+2. Ensure no extra spaces or quotes around values
+3. Restart development server after changing `.env`
+
+### Issue 5: API key errors (for AI features)
+**Cause**: Invalid or missing API keys
+**Solution**:
+1. Verify API key format (OpenAI starts with `sk-`, Anthropic with `sk-ant-`)
+2. Check API key permissions and billing status
+3. Test API keys directly with provider documentation
+
+## � Optional: AI Provider API Keys
+
+To enable AI chat functionality, you'll need API keys from one or more providers:
+
+### OpenAI Setup
+1. Go to [platform.openai.com](https://platform.openai.com)
+2. Sign up/login and go to API Keys
+3. Create a new API key
+4. Add to your `.env`: `VITE_OPENAI_API_KEY=sk-your-key-here`
+
+### Anthropic Setup
+1. Go to [console.anthropic.com](https://console.anthropic.com)
+2. Sign up/login and go to API Keys
+3. Create a new API key
+4. Add to your `.env`: `VITE_ANTHROPIC_API_KEY=sk-ant-your-key-here`
+
+### Google AI Setup
+1. Go to [makersuite.google.com](https://makersuite.google.com)
+2. Get an API key
+3. Add to your `.env`: `VITE_GOOGLE_API_KEY=your-key-here`
+
+> 💡 **Note**: The app works without API keys - you just won't be able to send messages to AI models. All other features (auth, conversations, sharing) work normally.
+
+## 🗄️ Database Schema Overview
+
+The application uses PostgreSQL with Row-Level Security (RLS):
+
+### Core Tables
+- **users**: User profiles linked to Supabase Auth
+- **conversations**: Chat conversations with AI models
+- **messages**: Individual messages within conversations
+
+### Key Features
+- **Row-Level Security**: Users can only access their own data
+- **Conversation Sharing**: Public read-only access to shared conversations
+- **Auto-User Creation**: User profiles created automatically on signup
+- **Performance Indexes**: Optimized for fast queries
+- **Cascade Deletes**: Clean data relationships
+
+### Database Setup
+The complete SQL schema is provided in the setup instructions above. It includes:
+- ✅ All table definitions with proper relationships
+- ✅ Row-Level Security policies for data protection
+- ✅ Performance indexes for fast queries
+- ✅ Triggers for automatic user creation and timestamps
+- ✅ Sharing functionality for public conversation access
 
 ## 🛠️ Development
 
