@@ -102,7 +102,7 @@
           </div>
 
           <!-- API Key Warning -->
-          <div v-if="selectedProvider?.requiresApiKey" class="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+          <!-- <div v-if="selectedProvider?.requiresApiKey" class="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
             <div class="flex items-start">
               <ExclamationTriangleIcon class="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 mr-2 flex-shrink-0" />
               <div class="text-sm text-yellow-800 dark:text-yellow-200">
@@ -113,7 +113,7 @@
                 </p>
               </div>
             </div>
-          </div>
+          </div> -->
 
           <!-- Actions -->
           <div class="flex justify-end space-x-3 pt-4">

@@ -27,25 +27,25 @@ export class LLMService {
         }
       ]
     },
-    {
-      id: 'anthropic',
-      name: 'Anthropic',
-      requiresApiKey: true,
-      models: [
-        {
-          id: 'claude-3-5-sonnet-20241022',
-          name: 'Claude 3.5 Sonnet',
-          description: 'Most intelligent model',
-          context_length: 200000,
-        },
-        {
-          id: 'claude-3-5-haiku-20241022',
-          name: 'Claude 3.5 Haiku',
-          description: 'Fastest model',
-          context_length: 200000,
-        }
-      ]
-    },
+    // {
+    //   id: 'anthropic',
+    //   name: 'Anthropic',
+    //   requiresApiKey: true,
+    //   models: [
+    //     {
+    //       id: 'claude-3-5-sonnet-20241022',
+    //       name: 'Claude 3.5 Sonnet',
+    //       description: 'Most intelligent model',
+    //       context_length: 200000,
+    //     },
+    //     {
+    //       id: 'claude-3-5-haiku-20241022',
+    //       name: 'Claude 3.5 Haiku',
+    //       description: 'Fastest model',
+    //       context_length: 200000,
+    //     }
+    //   ]
+    // },
     {
       id: 'google',
       name: 'Google',
