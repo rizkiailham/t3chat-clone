@@ -1,7 +1,7 @@
 <template>
   <div class="flex items-start space-x-3 sm:space-x-4 group" :class="{ 'flex-row-reverse space-x-reverse': isUser }">
     <!-- Avatar -->
-    <div class="flex-shrink-0">
+    <div class="flex-shrink-0 ml-4">
       <div v-if="isUser" class="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-blue-100 dark:ring-blue-900/30">
         <span class="text-white text-xs sm:text-sm font-bold">{{ userInitial }}</span>
       </div>
@@ -11,7 +11,7 @@
     </div>
 
     <!-- Message Content -->
-    <div class="flex-1 max-w-full sm:max-w-4xl min-w-0">
+    <div class="">
       <!-- Message Attachments (above the bubble) -->
       <MessageAttachments
         v-if="isUser && message.metadata?.attachments"
@@ -19,7 +19,7 @@
       />
 
       <div
-        class="rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-sm transition-all duration-200 hover:shadow-xl max-w-full sm:max-w-2xl"
+        class="rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-sm transition-all duration-200 hover:shadow-xl" 
         :class="messageClasses"
       >
         <!-- Edit mode -->
@@ -182,7 +182,7 @@ onUnmounted(() => {
 
 const messageClasses = computed(() => {
   if (isUser.value) {
-    return 'bg-gradient-to-br from-blue-600 to-blue-700 text-white ml-auto border border-blue-500/20 shadow-lg shadow-blue-500/25'
+    return 'bg-gradient-to-br from-blue-600 to-blue-700 text-white ml-auto border border-blue-500/20 shadow-lg shadow-blue-500/25 max-w-xl'
   }
   return 'glass border border-white/20 dark:border-gray-700/50 text-gray-900 dark:text-white shadow-lg'
 })
