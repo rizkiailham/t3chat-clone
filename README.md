@@ -2,6 +2,23 @@
 
 A modern, feature-rich AI chat application built with Vue.js, featuring multiple LLM providers, real-time streaming, conversation sharing, and Google authentication. Built for the T3 Chat Cloneathon with enterprise-grade performance optimizations.
 
+## 🚀 Live Demo
+
+- **Production**: [https://t3chat-clone.vercel.app](https://t3chat-clone.vercel.app)
+- **Guest Mode**: Try instantly without signing up
+- **Full Features**: Sign in with Google for complete functionality
+
+## 📋 Table of Contents
+
+- [Features](#-features)
+- [Tech Stack](#️-tech-stack)
+- [Quick Start](#-quick-start)
+- [Deployment](#-deployment)
+- [CI/CD Setup](#-cicd-setup)
+- [Development](#️-development)
+- [Troubleshooting](#-troubleshooting)
+- [Contributing](#-contributing)
+
 ## ✨ Features
 
 ### 🤖 **AI & LLM Integration**
@@ -527,56 +544,165 @@ npm run test:e2e         # Run end-to-end tests
 
 ## 🚀 Deployment
 
-### Vercel (Recommended)
+This project is optimized for deployment on **Vercel** and **Netlify** with automatic CI/CD. Both platforms offer generous free tiers perfect for this application.
 
-Vercel provides the best experience for Vue.js applications with automatic deployments and optimizations.
+### 🏆 Vercel (Recommended - Easiest Setup)
 
-#### Setup Steps:
+Vercel provides the best experience for Vue.js applications with zero-config deployments and automatic optimizations.
+
+#### Why Vercel?
+- ✅ **Zero Configuration**: Auto-detects Vue.js and configures everything
+- ✅ **Free Tier**: 100GB bandwidth, unlimited personal projects
+- ✅ **Automatic HTTPS**: SSL certificates included
+- ✅ **Global CDN**: Fast loading worldwide
+- ✅ **Preview Deployments**: Every PR gets a preview URL
+- ✅ **Built-in Analytics**: Performance monitoring included
+
+#### One-Click Deploy to Vercel
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-username/t3chat-clone&env=VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY,VITE_GOOGLE_CLIENT_ID&envDescription=Required%20environment%20variables%20for%20T3%20Chat%20Clone&envLink=https://github.com/your-username/t3chat-clone%23environment-configuration)
+
+#### Manual Vercel Setup:
+
 1. **Connect Repository**
-   - Go to [vercel.com](https://vercel.com) and sign up
-   - Click "New Project" and import your GitHub repository
-   - Vercel will auto-detect it's a Vue.js project
+   ```bash
+   # Option 1: Use Vercel CLI (fastest)
+   npm i -g vercel
+   vercel --prod
+
+   # Option 2: Use Vercel Dashboard
+   # Go to vercel.com → New Project → Import from GitHub
+   ```
 
 2. **Configure Environment Variables**
    Add these in Vercel dashboard under Settings > Environment Variables:
-   ```
+   ```env
+   # Required
    VITE_SUPABASE_URL=https://your-project.supabase.co
    VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
-   VITE_GOOGLE_CLIENT_ID=your-google-client-id
-   VITE_OPENAI_API_KEY=your-openai-api-key (optional)
-   VITE_ANTHROPIC_API_KEY=your-anthropic-api-key (optional)
-   VITE_GOOGLE_API_KEY=your-google-ai-api-key (optional)
+   VITE_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+
+   # Optional (for AI features)
+   VITE_OPENAI_API_KEY=sk-your-openai-api-key
+   VITE_GOOGLE_API_KEY=your-google-ai-api-key
+   VITE_PDFCO_API_KEY=your-pdfco-api-key
+
+   # Auto-configured
    VITE_APP_URL=https://your-domain.vercel.app
    ```
 
 3. **Update OAuth Settings**
-   - Add your Vercel domain to Google OAuth authorized origins
-   - Update Supabase Auth settings with your production URL
+   - **Google Console**: Add `https://your-domain.vercel.app` to authorized origins
+   - **Supabase Auth**: Add your Vercel URL to allowed origins
 
-4. **Deploy**
-   - Vercel will automatically deploy on every push to main branch
-   - Custom domains can be configured in project settings
+4. **Deploy & Enjoy**
+   - Automatic deployment on every push to main branch
+   - Preview deployments for pull requests
+   - Custom domains available in project settings
 
-### Netlify
+### 🌐 Netlify (Alternative Option)
 
-Alternative deployment option with similar features.
+Netlify is another excellent option with similar features and generous free tier.
 
-#### Setup Steps:
+#### Why Netlify?
+- ✅ **Free Tier**: 100GB bandwidth, 300 build minutes/month
+- ✅ **Form Handling**: Built-in form processing
+- ✅ **Split Testing**: A/B testing capabilities
+- ✅ **Edge Functions**: Serverless functions at the edge
+- ✅ **Deploy Previews**: Preview every pull request
+
+#### One-Click Deploy to Netlify
+
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/your-username/t3chat-clone)
+
+#### Manual Netlify Setup:
+
 1. **Connect Repository**
-   - Go to [netlify.com](https://netlify.com) and sign up
-   - Click "New site from Git" and connect your repository
+   ```bash
+   # Option 1: Drag & Drop (for quick testing)
+   npm run build
+   # Drag the 'dist' folder to netlify.com/drop
+
+   # Option 2: Git Integration (recommended)
+   # Go to netlify.com → New site from Git → Choose your repo
+   ```
 
 2. **Build Settings**
-   - Build command: `npm run build`
-   - Publish directory: `dist`
-   - Node version: 18 or higher
+   ```yaml
+   # Netlify will auto-detect these, but you can override:
+   Build command: npm run build
+   Publish directory: dist
+   Node version: 18
+   ```
 
 3. **Environment Variables**
-   Add the same environment variables as Vercel in Site Settings > Environment Variables
+   Add in Site Settings > Environment Variables (same as Vercel):
+   ```env
+   VITE_SUPABASE_URL=https://your-project.supabase.co
+   VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+   VITE_GOOGLE_CLIENT_ID=your-google-client-id
+   # ... other variables
+   ```
 
 4. **Deploy**
-   - Netlify will build and deploy automatically
-   - Configure custom domain if needed
+   - Automatic deployment on every push
+   - Custom domains and HTTPS included
+   - Deploy previews for pull requests
+
+## 🔄 CI/CD Setup
+
+This project includes automated CI/CD pipelines for quality assurance and deployment.
+
+### GitHub Actions (Included)
+
+The repository includes pre-configured GitHub Actions for:
+
+#### 🧪 **Continuous Integration** (`.github/workflows/ci.yml`)
+- **Code Quality**: ESLint, Prettier, TypeScript checks
+- **Build Testing**: Ensures production builds work
+- **Dependency Security**: Automated vulnerability scanning
+- **Multi-Node Testing**: Tests on Node.js 18, 20, and 22
+- **Triggers**: Every push and pull request
+
+#### 🚀 **Continuous Deployment** (`.github/workflows/deploy.yml`)
+- **Auto-Deploy**: Deploys to production on main branch pushes
+- **Preview Deployments**: Creates preview URLs for pull requests
+- **Environment Management**: Handles staging and production environments
+- **Rollback Support**: Easy rollback to previous versions
+- **Triggers**: Push to main branch, manual dispatch
+
+#### 📊 **Monitoring & Alerts**
+- **Build Status**: Slack/Discord notifications (configurable)
+- **Performance Monitoring**: Lighthouse CI integration
+- **Error Tracking**: Automatic error reporting setup
+- **Uptime Monitoring**: Health check endpoints
+
+### Setting Up CI/CD
+
+1. **Enable GitHub Actions**
+   ```bash
+   # Actions are automatically enabled when you push to GitHub
+   # Check the "Actions" tab in your repository
+   ```
+
+2. **Configure Secrets**
+   Go to Repository Settings > Secrets and Variables > Actions:
+   ```env
+   # Required for deployment
+   VERCEL_TOKEN=your-vercel-token
+   VERCEL_ORG_ID=your-vercel-org-id
+   VERCEL_PROJECT_ID=your-vercel-project-id
+
+   # Optional for notifications
+   SLACK_WEBHOOK_URL=your-slack-webhook
+   DISCORD_WEBHOOK_URL=your-discord-webhook
+   ```
+
+3. **Customize Workflows**
+   Edit `.github/workflows/` files to match your needs:
+   - Add custom test commands
+   - Configure deployment targets
+   - Set up notification preferences
 
 ### Production Checklist
 
@@ -587,8 +713,11 @@ Before deploying to production:
 - [ ] ✅ Supabase Auth settings updated
 - [ ] ✅ Database schema deployed
 - [ ] ✅ API keys secured (not in client code)
+- [ ] ✅ CI/CD pipelines tested
 - [ ] ✅ Error tracking configured (optional)
 - [ ] ✅ Analytics configured (optional)
+- [ ] ✅ Custom domain configured (optional)
+- [ ] ✅ SSL certificates verified
 
 ### Post-Deployment
 
@@ -765,4 +894,40 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
+## 🚀 Recommended Deployment: Vercel (Free)
+
+For the easiest production deployment with zero configuration:
+
+### Why Vercel?
+- ✅ **Zero Configuration**: Auto-detects Vue.js projects
+- ✅ **Free Tier**: 100GB bandwidth, unlimited personal projects
+- ✅ **Automatic HTTPS**: SSL certificates included
+- ✅ **Global CDN**: Fast loading worldwide
+- ✅ **CI/CD Built-in**: Auto-deploy on every push
+- ✅ **Preview Deployments**: Every PR gets a preview URL
+
+### One-Click Deploy
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-username/t3chat-clone&env=VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY,VITE_GOOGLE_CLIENT_ID&envDescription=Required%20environment%20variables%20for%20T3%20Chat%20Clone)
+
+### Manual Deploy (2 minutes)
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Deploy to production
+vercel --prod
+```
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for complete deployment guide and [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md) for production readiness checklist.
+
+---
+
 **Built with ❤️ for the T3 Chat Cloneathon**
+
+### 📚 Additional Documentation
+- [📖 Setup Guide](SETUP.md) - Detailed development setup
+- [🚀 Deployment Guide](DEPLOYMENT.md) - Production deployment
+- [✅ Deployment Checklist](DEPLOYMENT_CHECKLIST.md) - Pre-launch verification
+- [🤝 Contributing Guide](CONTRIBUTING.md) - How to contribute
+- [📊 Project Overview](PROJECT_OVERVIEW.md) - Architecture and features
+- [🔧 Features Documentation](FEATURES.md) - Detailed feature list
