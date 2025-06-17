@@ -357,7 +357,7 @@ export class PDFCoService {
 
       // Convert CSV to table format
       const tables: PDFCoTable[] = []
-      const lines = csvData.split('\n').filter(line => line.trim())
+      const lines = csvData.split('\n').filter((line: string) => line.trim())
       
       if (lines.length > 1) {
         const rows = lines.length
@@ -477,7 +477,7 @@ export class PDFCoService {
    * Convert CSV data to HTML table
    */
   private csvToHtmlTable(csvData: string): string {
-    const lines = csvData.split('\n').filter(line => line.trim())
+    const lines = csvData.split('\n').filter((line: string) => line.trim())
     
     if (lines.length === 0) {
       return '<table></table>'
