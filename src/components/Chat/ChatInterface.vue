@@ -185,7 +185,7 @@
     ></div>
 
     <!-- Main Chat Area with Floating Glass Effect -->
-    <div class="flex-1 flex flex-col min-w-0 relative p-4 lg:p-8">
+    <div class="flex-1 flex flex-col min-w-0 relative p-4 lg:pt-8">
       <!-- Floating Chat Container -->
       <div class="flex-1 flex flex-col max-w-4xl mx-auto w-full">
         <!-- Floating Chat Header -->
@@ -259,31 +259,37 @@
         </div>
 
         <!-- Floating Messages Area -->
-        <div class="flex-1 overflow-hidden relative min-h-0">
+        <div class="flex-1 overflow-hidden relative min-h-0 flex flex-col">
           <!-- Guest Mode Indicator -->
-          <div v-if="isGuestMode" class="mx-6 mt-4">
+          <div v-if="isGuestMode" class="mx-6 mt-4 flex-shrink-0">
             <GuestModeIndicator @sign-in="router.push('/login')" />
           </div>
 
-          <div v-if="!isGuestMode && !chatStore.currentConversation" class="h-full flex items-center justify-center">
-            <div class="gemini-welcome-card">
-              <div class="relative mb-8">
-                <div class="w-20 h-20 mx-auto bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+          <!-- Authenticated User Welcome Message -->
+          <div v-if="shouldShowWelcomeMessage" class="h-full flex items-center justify-center">
+            <div class="gemini-welcome-card text-center">
+              <div class="relative mb-8 flex justify-center">
+                <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
                   <ChatBubbleLeftRightIcon class="w-10 h-10 text-white" />
                 </div>
                 <div class="absolute -top-2 -right-2 w-6 h-6 bg-green-400 rounded-full animate-pulse"></div>
               </div>
-              <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-3">Welcome to T3 Chat Clone</h3>
-              <p class="text-gray-600 dark:text-gray-400 mb-8 leading-relaxed">
+              <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-3 text-center">Welcome to T3 Chat Clone</h3>
+              <p class="text-gray-600 dark:text-gray-400 mb-8 leading-relaxed text-center max-w-md mx-auto">
                 Start a new conversation to begin chatting with AI. Experience the power of modern conversational AI.
               </p>
-              <button
-                @click="showNewChatModal = true"
-                class="btn-primary inline-flex items-center space-x-2 px-6 py-3 text-base font-semibold"
-              >
-                <PencilSquareIcon class="w-5 h-5" />
-                <span>Start New Chat</span>
-              </button>
+              <div class="space-y-4">
+                <button
+                  @click="showNewChatModal = true"
+                  class="btn-primary inline-flex items-center space-x-2 px-6 py-3 text-base font-semibold w-full justify-center"
+                >
+                  <PencilSquareIcon class="w-5 h-5" />
+                  <span>Start New Chat</span>
+                </button>
+                <p class="text-sm text-gray-500 dark:text-gray-400 text-center">
+                  Or select an existing conversation from the sidebar
+                </p>
+              </div>
             </div>
           </div>
 
@@ -305,43 +311,17 @@
                   Currently using: <span class="font-semibold">{{ guestChatStore.currentModel.provider }} - {{ guestChatStore.currentModel.name }}</span>
                 </p>
                 <!-- Debug Test Button -->
-                <div class="space-y-2">
-                  <button
-                    @click="testGuestMode"
-                    class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm"
-                  >
-                    🧪 Test Guest Chat
-                  </button>
-                  <p class="text-xs text-amber-600 dark:text-amber-400">
-                    🛡️ Guest mode is active - no API calls to Supabase will be made
-                  </p>
-                </div>
+                <button
+                  @click="testGuestMode"
+                  class="mt-4 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm"
+                >
+                  🧪 Test Guest Chat
+                </button>
               </div>
             </div>
           </div>
 
-          <div v-else-if="!isGuestMode || guestChatStore.hasMessages" class="h-full flex flex-col">
-            <!-- Error Message -->
-            <div v-if="(isGuestMode && guestChatStore.error) || (!isGuestMode && chatStore.error)" class="mx-6 mt-4 p-4 bg-red-50/80 dark:bg-red-900/20 border border-red-200/50 dark:border-red-800/50 rounded-xl backdrop-blur-sm animate-slide-in-left">
-              <div class="flex items-start">
-                <div class="flex-shrink-0 w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center mr-3">
-                  <ExclamationCircleIcon class="w-4 h-4 text-red-600 dark:text-red-400" />
-                </div>
-                <div class="flex-1">
-                  <h4 class="text-sm font-semibold text-red-800 dark:text-red-200 mb-1">Error</h4>
-                  <p class="text-sm text-red-700 dark:text-red-300">
-                    {{ isGuestMode ? guestChatStore.error : chatStore.error }}
-                  </p>
-                </div>
-                <button
-                  @click="isGuestMode ? guestChatStore.clearError() : chatStore.clearError()"
-                  class="flex-shrink-0 p-1.5 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-all duration-200"
-                >
-                  <XMarkIcon class="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
+          <div v-else-if="(!isGuestMode || guestChatStore.hasMessages) && !shouldShowWelcomeMessage" class="h-full flex flex-col">
             <!-- Messages Area (Dynamic Height) -->
             <div ref="messagesContainer" class="flex-1 overflow-y-auto space-y-4" :style="messagesContainerStyle">
               <MessageBubble
@@ -427,7 +407,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, watch, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import { useChatStore } from '../../stores/chat'
 import { useGuestChatStore } from '../../stores/guest-chat'
@@ -452,6 +432,7 @@ import GuestModeIndicator from '../GuestModeIndicator.vue'
 import type { FileAttachment } from '../../types'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const chatStore = useChatStore()
 const guestChatStore = useGuestChatStore()
@@ -460,6 +441,27 @@ const guestChatStore = useGuestChatStore()
 const isGuestMode = computed(() => authStore.isGuestMode)
 const currentChatStore = computed(() => isGuestMode.value ? guestChatStore : chatStore)
 const currentMessages = computed(() => isGuestMode.value ? guestChatStore.currentMessages : chatStore.currentMessages)
+
+// Computed property to determine when to show welcome message
+const shouldShowWelcomeMessage = computed(() => {
+  console.log('🔍 shouldShowWelcomeMessage computed:', {
+    isGuestMode: isGuestMode.value,
+    isAuthenticated: authStore.isAuthenticated,
+    currentConversation: chatStore.currentConversation ? 'EXISTS' : 'NULL'
+  })
+
+  return !isGuestMode.value &&
+         authStore.isAuthenticated &&
+         !chatStore.currentConversation
+})
+
+// Computed property to determine when to show chat input
+const shouldShowChatInput = computed(() => {
+  if (isGuestMode.value) {
+    return true // Always show input in guest mode
+  }
+  return authStore.isAuthenticated && !!chatStore.currentConversation
+})
 
 const messagesContainer = ref<HTMLElement>()
 const showNewChatModal = ref(false)
@@ -504,7 +506,7 @@ const messagesContainerStyle = computed(() => {
   // On desktop, account for the floating input and header
   return {
     maxHeight: `calc(100vh - ${Math.max(290, inputAreaHeight + 100)}px)`,
-    minHeight: `calc(100vh - ${Math.max(290, inputAreaHeight + 100)}px)` // Assuming minHeight should be the same as maxHeight for this specific case
+    minHeight: `calc(100vh - ${Math.max(320, inputAreaHeight + 100)}px)` // Assuming minHeight should be the same as maxHeight for this specific case
   }
   }
 });
@@ -513,10 +515,24 @@ const messagesContainerStyle = computed(() => {
 watch(() => router.currentRoute.value.params.conversationId, async (newConversationId) => {
   if (newConversationId && authStore.isAuthenticated) {
     console.log('🔗 Route changed to conversation:', newConversationId)
+
+    // Ensure conversations are loaded first
+    if (chatStore.conversations.length === 0) {
+      console.log('📋 Loading conversations first...')
+      await chatStore.loadConversations()
+    }
+
     const conversation = chatStore.conversations.find(c => c.id === newConversationId)
-    if (conversation && conversation.id !== chatStore.currentConversation?.id) {
-      console.log('✅ Selecting conversation from route change')
-      await chatStore.selectConversation(conversation)
+    if (conversation) {
+      if (conversation.id !== chatStore.currentConversation?.id) {
+        console.log('✅ Selecting conversation from route change')
+        await chatStore.selectConversation(conversation)
+      } else {
+        console.log('✅ Conversation already selected')
+      }
+    } else {
+      console.log('❌ Conversation not found after loading, redirecting to home')
+      router.push('/')
     }
   }
 });
@@ -541,6 +557,12 @@ onMounted(async () => {
     console.log('✅ User authenticated, loading conversations')
     await chatStore.loadConversations()
 
+    console.log('🔍 Debug: After loading conversations:', {
+      conversationsCount: chatStore.conversations.length,
+      currentConversation: chatStore.currentConversation ? 'EXISTS' : 'NULL',
+      currentConversationId: chatStore.currentConversation?.id
+    })
+
     // Handle conversation ID from URL
     const conversationId = router.currentRoute.value.params.conversationId as string
     if (conversationId) {
@@ -552,6 +574,15 @@ onMounted(async () => {
       } else {
         console.log('❌ Conversation not found, redirecting to home')
         router.push('/')
+      }
+    } else {
+      console.log('🔍 No conversation ID in URL, current conversation should be NULL')
+      console.log('🔍 Current conversation state:', chatStore.currentConversation ? 'EXISTS (unexpected!)' : 'NULL (correct)')
+
+      // Force clear current conversation if no ID in URL
+      if (chatStore.currentConversation) {
+        console.log('🧹 Clearing unexpected current conversation')
+        chatStore.clearCurrentConversation()
       }
     }
   } else if (authStore.isGuestMode) {
@@ -594,7 +625,7 @@ onMounted(async () => {
 
   // Start smart connection health monitoring
   connectionMonitor = setInterval(async () => {
-    // Only monitor if user is authenticated, not in guest mode, and page is visible
+    // Only monitor if user is authenticated and page is visible (skip for guest mode)
     if (authStore.isAuthenticated && !authStore.isGuestMode && document.visibilityState === 'visible') {
       try {
         // Simple health check - try to get session
@@ -608,7 +639,7 @@ onMounted(async () => {
         await authStore.refreshTokenOnly()
       }
     } else if (authStore.isGuestMode) {
-      console.log('🎭 Connection monitor: In guest mode, skipping health check')
+      console.log('🎭 Connection monitor: Skipping health check for guest mode')
     }
   }, 60000) // Check every 60 seconds (less aggressive)
 
@@ -641,21 +672,42 @@ async function handlePageVisible() {
   try {
     console.log('🔄 Handling page visible event - smart recovery')
 
-    // Don't do anything if in guest mode
-    if (authStore.isGuestMode) {
-      console.log('🎭 In guest mode, skipping page visible handling')
-      return
-    }
-
     // Clear any existing errors first
     chatStore.clearError()
 
-    // Step 1: Check if we actually need to refresh
+    // Step 1: Check if we're in guest mode - skip auth refresh entirely
+    if (authStore.isGuestMode) {
+      console.log('🎭 In guest mode, skipping all auth checks and only refreshing chat state')
+
+      // Only refresh chat state for guest mode if needed
+      if (route.params.conversationId && route.params.conversationId !== chatStore.currentConversation?.id) {
+        console.log('🔄 Refreshing conversation state for guest mode')
+        await chatStore.loadConversations()
+
+        const conversation = chatStore.conversations.find(c => c.id === route.params.conversationId)
+        if (conversation && conversation.id !== chatStore.currentConversation?.id) {
+          await chatStore.selectConversation(conversation)
+        }
+      }
+
+      console.log('✅ Guest mode page visible handling completed')
+      return
+    }
+
+    // Step 2: For authenticated users, check if we actually need to refresh
     const currentSession = await authStore.getSession()
     if (!currentSession) {
-      console.log('❌ No session found, redirecting to login')
-      router.push('/login')
-      return
+      console.log('❌ No session found for authenticated user')
+      // Check if route allows guest mode
+      if (route.meta.allowGuest) {
+        console.log('🎭 Route allows guest mode, enabling guest mode instead of redirecting')
+        authStore.enableGuestMode()
+        return
+      } else {
+        console.log('❌ Route requires auth, redirecting to login')
+        router.push('/login')
+        return
+      }
     }
 
     // Step 2: Light auth refresh (token only, no chat state refresh)
@@ -678,9 +730,23 @@ async function handlePageVisible() {
 
     console.log('✅ Authentication verified')
 
-    // Step 4: Smart chat state refresh (only if needed)
-    console.log('💬 Step 2: Smart chat state refresh...')
-    await chatStore.refreshState(false) // Don't force refresh
+    // Step 4: Smart chat state refresh (only if needed and not on home page)
+    const conversationId = router.currentRoute.value.params.conversationId as string
+    if (conversationId) {
+      console.log('💬 Step 2: Smart chat state refresh...')
+      await chatStore.refreshState(false) // Don't force refresh
+    } else {
+      console.log('🏠 On home page, skipping chat state refresh')
+      // Just load conversations but don't select any
+      if (chatStore.conversations.length === 0) {
+        await chatStore.loadConversations()
+      }
+      // Ensure no conversation is selected on home page
+      if (chatStore.currentConversation) {
+        console.log('🧹 Clearing conversation on home page')
+        chatStore.clearCurrentConversation()
+      }
+    }
 
     // Step 5: Re-focus input if available (no component re-render needed)
     await nextTick()
@@ -721,7 +787,7 @@ watch(() => authStore.isAuthenticated, (isAuth) => {
     console.log('❌ User logged out and not in guest mode, redirecting to login')
     router.push('/login')
   } else if (!isAuth && authStore.isGuestMode) {
-    console.log('🎭 Authentication lost but in guest mode, staying on page')
+    console.log('🎭 User logged out but in guest mode, staying on current page')
   }
 })
 
@@ -852,10 +918,17 @@ async function handleCreateConversation(data: { title: string; provider: string;
     }
 
     console.log('✅ Creating conversation...')
-    await chatStore.createConversation(data.title, data.provider, data.model)
+    const newConversation = await chatStore.createConversation(data.title, data.provider, data.model)
 
     console.log('✅ Conversation created successfully')
     showNewChatModal.value = false
+
+    // Navigate to the new conversation
+    console.log('🔗 Navigating to new conversation:', newConversation.id)
+    await router.push(`/chat/${newConversation.id}`)
+
+    // Small delay to ensure route watcher processes the navigation
+    await nextTick()
 
     // Clear any previous errors
     chatStore.clearError()

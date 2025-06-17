@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { pdfCoService, type PDFCoParseResult } from './pdf-co.service'
 
 export interface FileUploadResult {
   file: File
@@ -6,7 +6,29 @@ export interface FileUploadResult {
   content?: string
   base64?: string
   error?: string
+  // Enhanced PDF data
+  pdfData?: {
+    text: string
+    images: Array<{ id: string; base64: string; description?: string }>
+    tables: Array<{ id: string; html: string; text: string }>
+    metadata: {
+      pages: number
+      service: string
+      hasText: boolean
+      hasImages: boolean
+      hasTables: boolean
+    }
+  }
 }
+
+export interface UploadProgress {
+  progress: number // 0-100
+  status: string
+  step: number
+  totalSteps: number
+}
+
+export type ProgressCallback = (progress: UploadProgress) => void
 
 export class FileUploadService {
   private readonly ALLOWED_IMAGE_TYPES = [
@@ -53,12 +75,27 @@ export class FileUploadService {
   }
 
   /**
-   * Process uploaded file
+   * Process uploaded file with progress tracking
    */
-  async processFile(file: File): Promise<FileUploadResult> {
+  async processFile(file: File, onProgress?: ProgressCallback): Promise<FileUploadResult> {
+    // Initial progress
+    onProgress?.({
+      progress: 0,
+      status: 'Validating file...',
+      step: 0,
+      totalSteps: 4
+    })
+
     const validation = this.validateFile(file)
-    
+
     if (!validation.isValid) {
+      onProgress?.({
+        progress: 100,
+        status: `Validation failed: ${validation.error}`,
+        step: 4,
+        totalSteps: 4
+      })
+
       return {
         file,
         type: 'image', // default
@@ -66,18 +103,32 @@ export class FileUploadService {
       }
     }
 
+    onProgress?.({
+      progress: 20,
+      status: 'File validated successfully',
+      step: 1,
+      totalSteps: 4
+    })
+
     try {
       const isImage = this.ALLOWED_IMAGE_TYPES.includes(file.type)
       const isPdf = this.ALLOWED_PDF_TYPES.includes(file.type)
 
       if (isImage) {
-        return await this.processImage(file)
+        return await this.processImage(file, onProgress)
       } else if (isPdf) {
-        return await this.processPdf(file)
+        return await this.processPdf(file, onProgress)
       }
 
       throw new Error('Unsupported file type')
     } catch (error: any) {
+      onProgress?.({
+        progress: 100,
+        status: `Error: ${error.message}`,
+        step: 4,
+        totalSteps: 4
+      })
+
       return {
         file,
         type: 'image',
@@ -87,13 +138,27 @@ export class FileUploadService {
   }
 
   /**
-   * Process image file
+   * Process image file with progress tracking
    */
-  private async processImage(file: File): Promise<FileUploadResult> {
+  private async processImage(file: File, onProgress?: ProgressCallback): Promise<FileUploadResult> {
+    onProgress?.({
+      progress: 40,
+      status: 'Reading image file...',
+      step: 2,
+      totalSteps: 4
+    })
+
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
-      
+
       reader.onload = (event) => {
+        onProgress?.({
+          progress: 100,
+          status: 'Image processed successfully',
+          step: 4,
+          totalSteps: 4
+        })
+
         const base64 = event.target?.result as string
         resolve({
           file,
@@ -104,6 +169,12 @@ export class FileUploadService {
       }
 
       reader.onerror = () => {
+        onProgress?.({
+          progress: 100,
+          status: 'Failed to read image file',
+          step: 4,
+          totalSteps: 4
+        })
         reject(new Error('Failed to read image file'))
       }
 
@@ -112,24 +183,188 @@ export class FileUploadService {
   }
 
   /**
-   * Process PDF file
+   * Process PDF file with PDF.co service and progress tracking
    */
-  private async processPdf(file: File): Promise<FileUploadResult> {
+  private async processPdf(file: File, onProgress?: ProgressCallback): Promise<FileUploadResult> {
     try {
-      // For now, we'll just prepare the PDF for upload
-      // In a real implementation, you might want to extract text using PDF.js
+      console.log('📄 Processing PDF with PDF.co service:', file.name)
+
+      onProgress?.({
+        progress: 30,
+        status: 'Converting PDF to base64...',
+        step: 2,
+        totalSteps: 4
+      })
+
+      // Get base64 for storage
       const base64 = await this.fileToBase64(file)
-      
+
+      onProgress?.({
+        progress: 50,
+        status: 'Uploading to PDF.co for parsing...',
+        step: 3,
+        totalSteps: 4
+      })
+
+      // Parse PDF content using PDF.co
+      let pdfData: FileUploadResult['pdfData'] | undefined
+      let content = `PDF uploaded: ${file.name} (${this.formatFileSize(file.size)})`
+
+      try {
+        if (pdfCoService.isConfigured()) {
+          console.log('🔄 Using PDF.co service for parsing...')
+
+          onProgress?.({
+            progress: 60,
+            status: 'Starting PDF.co processing...',
+            step: 3,
+            totalSteps: 4
+          })
+
+          const parseResult = await pdfCoService.parsePDF(file)
+
+          pdfData = {
+            text: parseResult.text,
+            images: parseResult.images.map(img => ({
+              id: img.id,
+              base64: img.base64,
+              description: img.description
+            })),
+            tables: parseResult.tables.map(table => ({
+              id: table.id,
+              html: table.html,
+              text: table.text
+            })),
+            metadata: {
+              pages: parseResult.metadata.pages,
+              service: parseResult.metadata.service,
+              hasText: parseResult.metadata.hasText,
+              hasImages: parseResult.metadata.hasImages,
+              hasTables: parseResult.metadata.hasTables
+            }
+          }
+
+          // Enhanced content with parsing results
+          content = this.createPDFCoSummary(file, parseResult)
+
+          onProgress?.({
+            progress: 90,
+            status: 'Finalizing PDF processing...',
+            step: 3,
+            totalSteps: 4
+          })
+
+          console.log('✅ PDF.co parsing completed:', {
+            service: parseResult.metadata.service,
+            pages: parseResult.metadata.pages,
+            textLength: parseResult.text.length,
+            imageCount: parseResult.images.length,
+            tableCount: parseResult.tables.length
+          })
+
+        } else {
+          console.log('⚠️ PDF.co not configured. Please add VITE_PDFCO_API_KEY to your .env file')
+          content = `📄 **${file.name}** (${this.formatFileSize(file.size)})
+
+⚠️ **PDF parsing not available**
+To enable PDF content analysis, please:
+1. Sign up for a free account at https://pdf.co
+2. Get your API key from the dashboard
+3. Add VITE_PDFCO_API_KEY=your-key-here to your .env file
+4. Restart the application
+
+**Free tier includes:** 100 API calls/month
+**Features:** Text extraction, table detection, image extraction, OCR`
+        }
+
+      } catch (parseError) {
+        console.warn('⚠️ PDF.co parsing failed:', parseError)
+        content = `📄 **${file.name}** (${this.formatFileSize(file.size)})
+
+❌ **PDF parsing failed**
+The PDF file was uploaded but content extraction failed. This might be due to:
+- Complex PDF format or scanned document
+- API rate limits or service issues
+- Network connectivity problems
+
+You can still reference this PDF in your conversation, but AI analysis of the content may be limited.`
+      }
+
+      onProgress?.({
+        progress: 100,
+        status: 'PDF processing completed',
+        step: 4,
+        totalSteps: 4
+      })
+
       return {
         file,
         type: 'pdf',
         base64,
-        content: `PDF uploaded: ${file.name} (${this.formatFileSize(file.size)})`
+        content,
+        pdfData
       }
-    } catch (error: any) {
-      throw new Error(`Failed to process PDF: ${error.message}`)
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+
+      onProgress?.({
+        progress: 100,
+        status: `Error: ${errorMessage}`,
+        step: 4,
+        totalSteps: 4
+      })
+
+      throw new Error(`Failed to process PDF: ${errorMessage}`)
     }
   }
+
+
+
+  /**
+   * Create a summary of PDF.co parsing results
+   */
+  private createPDFCoSummary(file: File, parseResult: PDFCoParseResult): string {
+    const { metadata, text, images, tables } = parseResult
+
+    let summary = `📄 **${file.name}** (${this.formatFileSize(file.size)})\n\n`
+
+    // Service info with confidence
+    summary += `🔧 **Parsed with:** PDF.co (PREMIUM)\n`
+    summary += `📊 **Pages:** ${metadata.pages}\n`
+    summary += `🎯 **Confidence:** ${(metadata.confidence * 100).toFixed(1)}%\n`
+
+    // Content summary
+    const features = []
+    if (metadata.hasText) features.push(`📝 Text (${text.length} chars)`)
+    if (metadata.hasImages) features.push(`🖼️ Images (${images.length})`)
+    if (metadata.hasTables) features.push(`📋 Tables (${tables.length})`)
+
+    if (features.length > 0) {
+      summary += `✨ **Extracted:** ${features.join(', ')}\n\n`
+    }
+
+    // Text preview
+    if (text && text.length > 0) {
+      const preview = text.length > 200 ? text.substring(0, 200) + '...' : text
+      summary += `📝 **Content Preview:**\n${preview}\n\n`
+    }
+
+    // Tables summary
+    if (tables.length > 0) {
+      summary += `📋 **Tables Found:** ${tables.length} structured table(s) with CSV export\n\n`
+    }
+
+    // Images summary
+    if (images.length > 0) {
+      summary += `🖼️ **Images Found:** ${images.length} high-quality image(s) extracted\n\n`
+    }
+
+    summary += `🤖 **Ready for AI analysis** - Professional-grade content extraction completed with PDF.co.`
+
+    return summary
+  }
+
+
 
   /**
    * Convert file to base64

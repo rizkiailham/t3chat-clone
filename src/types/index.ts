@@ -67,6 +67,19 @@ export interface FileAttachment {
   type: 'image' | 'pdf'
   base64: string
   content?: string
+  // Enhanced PDF data for AI analysis
+  pdfData?: {
+    text: string
+    images: Array<{ id: string; base64: string; description?: string }>
+    tables: Array<{ id: string; html: string; text: string }>
+    metadata: {
+      pages: number
+      service: string
+      hasText: boolean
+      hasImages: boolean
+      hasTables: boolean
+    }
+  }
 }
 
 export interface ChatMessage {
@@ -81,7 +94,6 @@ export interface ChatRequest {
   provider: string
   stream?: boolean
   temperature?: number
-  max_tokens?: number
   files?: FileAttachment[]
 }
 
@@ -110,7 +122,6 @@ export interface AppSettings {
   defaultModel: string
   defaultProvider: string
   temperature: number
-  maxTokens: number
   systemPrompt: string
 }
 

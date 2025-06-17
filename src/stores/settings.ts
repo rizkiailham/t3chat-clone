@@ -11,7 +11,6 @@ export const useSettingsStore = defineStore('settings', () => {
     defaultModel: 'gemini-2.0-flash',
     defaultProvider: 'google',
     temperature: 0.7,
-    maxTokens: 4000,
     systemPrompt: 'You are a helpful AI assistant.'
   })
   
@@ -68,11 +67,6 @@ export const useSettingsStore = defineStore('settings', () => {
     saveSettings()
   }
 
-  function setMaxTokens(maxTokens: number) {
-    settings.value.maxTokens = Math.max(1, Math.min(32000, maxTokens))
-    saveSettings()
-  }
-
   function setSystemPrompt(systemPrompt: string) {
     settings.value.systemPrompt = systemPrompt
     saveSettings()
@@ -115,7 +109,6 @@ export const useSettingsStore = defineStore('settings', () => {
       defaultModel: 'gpt-4o-mini',
       defaultProvider: 'openai',
       temperature: 0.7,
-      maxTokens: 4000,
       systemPrompt: 'You are a helpful AI assistant.'
     }
     applyTheme()
@@ -157,7 +150,6 @@ export const useSettingsStore = defineStore('settings', () => {
     setTheme,
     setDefaultModel,
     setTemperature,
-    setMaxTokens,
     setSystemPrompt,
     applyTheme,
     saveSettings,

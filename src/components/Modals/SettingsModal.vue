@@ -126,33 +126,6 @@
                     <span>Creative</span>
                   </div>
                 </div>
-
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Max Tokens
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="32000"
-                    :value="settingsStore.settings.maxTokens"
-                    @input="onMaxTokensChange"
-                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  >
-                </div>
-
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    System Prompt
-                  </label>
-                  <textarea
-                    :value="settingsStore.settings.systemPrompt"
-                    @input="onSystemPromptChange"
-                    rows="3"
-                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    placeholder="Enter a system prompt to guide the AI's behavior..."
-                  ></textarea>
-                </div>
               </div>
             </div>
           </div>
@@ -226,11 +199,6 @@ function onModelChange(event: Event) {
 function onTemperatureChange(event: Event) {
   const target = event.target as HTMLInputElement
   settingsStore.setTemperature(parseFloat(target.value))
-}
-
-function onMaxTokensChange(event: Event) {
-  const target = event.target as HTMLInputElement
-  settingsStore.setMaxTokens(parseInt(target.value))
 }
 
 function onSystemPromptChange(event: Event) {

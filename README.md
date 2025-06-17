@@ -384,7 +384,20 @@ To enable AI chat functionality, you'll need API keys from one or more providers
 2. Get an API key
 3. Add to your `.env`: `VITE_GOOGLE_API_KEY=your-key-here`
 
-> 💡 **Note**: The app works without API keys - you just won't be able to send messages to AI models. All other features (auth, conversations, sharing) work normally.
+### PDF.co Setup (Optional - for Premium PDF Parsing)
+1. Go to [pdf.co](https://pdf.co)
+2. Sign up for a free account (100 API calls/month)
+3. Go to your dashboard and copy your API key
+4. Add to your `.env`: `VITE_PDFCO_API_KEY=your-pdf-co-api-key`
+
+**PDF.co Features:**
+- ✅ High-quality text extraction from PDFs
+- ✅ Table detection and CSV export
+- ✅ Image extraction from PDF pages
+- ✅ OCR for scanned documents
+- ✅ Professional-grade parsing accuracy
+
+> 💡 **Note**: The app works without API keys - you just won't be able to send messages to AI models. PDF parsing requires PDF.co configuration for content analysis. All other features (auth, conversations, sharing) work normally.
 
 ## 🗄️ Database Schema Overview
 
@@ -595,38 +608,25 @@ The application supports multiple AI providers with flexible configuration:
 #### OpenAI Configuration
 ```typescript
 // Supported models
-- gpt-3.5-turbo
-- gpt-4
-- gpt-4-turbo
-- gpt-4o
+- gpt-4o (4096 tokens)
+- gpt-4o-mini (4096 tokens)
+- gpt-3.5-turbo (2048 tokens)
 
-// Configuration in settings
-temperature: 0.7
-maxTokens: 2048
-```
-
-#### Anthropic Configuration
-```typescript
-// Supported models
-- claude-3-haiku-20240307
-- claude-3-sonnet-20240229
-- claude-3-opus-20240229
-
-// Configuration in settings
-temperature: 0.7
-maxTokens: 4096
+// User configurable settings
+temperature: 0.7 (adjustable 0.0 - 2.0)
 ```
 
 #### Google Gemini Configuration
 ```typescript
 // Supported models
-- gemini-pro
-- gemini-pro-vision
+- gemini-2.0-flash (8192 tokens)
+- gemini-1.5-pro (8192 tokens)
 
-// Configuration in settings
-temperature: 0.9
-maxTokens: 2048
+// User configurable settings
+temperature: 0.7 (adjustable 0.0 - 2.0)
 ```
+
+**Note:** Max tokens are automatically optimized based on the selected model's capabilities and are not user-configurable, following the design patterns of modern AI applications like ChatGPT and Gemini.
 
 ### Customization Options
 

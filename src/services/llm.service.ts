@@ -1,5 +1,4 @@
 import type { ChatRequest, ChatResponse, LLMProvider, LLMModel, Message } from '../types'
-import type { FileUploadResult } from './file-upload.service'
 
 export class LLMService {
   private providers: LLMProvider[] = [
@@ -72,6 +71,39 @@ export class LLMService {
     return this.providers
   }
 
+  /**
+   * Get optimal max tokens for a model based on its capabilities
+   * This replaces user-configurable max tokens with smart defaults
+   */
+  private getOptimalMaxTokens(provider: string, model: string): number {
+    // Smart defaults based on model capabilities and use cases
+    const modelConfig: Record<string, Record<string, number>> = {
+      'openai': {
+        'gpt-4o': 4096,           // High-quality responses
+        'gpt-4o-mini': 4096,      // Efficient responses
+        'gpt-3.5-turbo': 2048,    // Fast responses
+        'default': 4096
+      },
+      'google': {
+        'gemini-2.0-flash': 8192,    // Latest model, higher capacity
+        'gemini-1.5-pro': 8192,      // Pro model, higher capacity
+        'default': 8192
+      },
+      'anthropic': {
+        'claude-3-5-sonnet-20241022': 4096,
+        'claude-3-5-haiku-20241022': 4096,
+        'default': 4096
+      }
+    }
+
+    const providerConfig = modelConfig[provider]
+    if (!providerConfig) {
+      return 4096 // Safe default
+    }
+
+    return providerConfig[model] || providerConfig['default'] || 4096
+  }
+
   getProvider(id: string): LLMProvider | undefined {
     return this.providers.find(p => p.id === id)
   }
@@ -82,7 +114,10 @@ export class LLMService {
   }
 
   async sendMessage(request: ChatRequest): Promise<ChatResponse> {
-    const { provider, model, messages, stream = false, temperature = 0.7, max_tokens = 4000, files } = request
+    const { provider, model, messages, stream = false, temperature = 0.7, files } = request
+
+    // Smart max tokens based on model capabilities
+    const max_tokens = this.getOptimalMaxTokens(provider, model)
 
     // Check if we're in demo mode (no API keys configured)
     const openaiKey = import.meta.env.VITE_OPENAI_API_KEY
@@ -135,7 +170,10 @@ export class LLMService {
   }
 
   async *streamMessage(request: ChatRequest): AsyncGenerator<string, void, unknown> {
-    const { provider, model, messages, temperature = 0.7, max_tokens = 4000, files } = request
+    const { provider, model, messages, temperature = 0.7, files } = request
+
+    // Smart max tokens based on model capabilities
+    const max_tokens = this.getOptimalMaxTokens(provider, model)
 
     // Check if we're in demo mode (no API keys configured)
     const openaiKey = import.meta.env.VITE_OPENAI_API_KEY
@@ -215,7 +253,7 @@ export class LLMService {
           model: params.model,
           messages: formattedMessages,
           temperature: params.temperature || 0.7,
-          max_tokens: params.max_tokens || 4000,
+          max_tokens: params.max_tokens,
           stream: false
         })
       })
@@ -254,7 +292,7 @@ export class LLMService {
           model: params.model,
           messages: this.formatOpenAIMessages(params.messages, params.files),
           temperature: params.temperature || 0.7,
-          max_tokens: params.max_tokens || 4000,
+          max_tokens: params.max_tokens,
           stream: true
         })
       })
@@ -530,7 +568,7 @@ export class LLMService {
           contents,
           generationConfig: {
             temperature: params.temperature || 0.7,
-            maxOutputTokens: params.max_tokens || 4000,
+            maxOutputTokens: params.max_tokens,
           }
         })
       })
@@ -591,7 +629,7 @@ export class LLMService {
           contents,
           generationConfig: {
             temperature: params.temperature || 0.7,
-            maxOutputTokens: params.max_tokens || 4000,
+            maxOutputTokens: params.max_tokens,
           }
         })
       })
@@ -687,10 +725,23 @@ export class LLMService {
                 }
               } as any) // Type assertion for Gemini API
             } else if (file.type === 'pdf') {
-              // For PDFs, add as text description
+              // Enhanced PDF processing with parsed content
+              const pdfContent = this.formatPDFContentForAI(file)
               parts.push({
-                text: `\n\n[PDF File: ${file.file.name}]\nPlease analyze this PDF document. Note: PDF content extraction is not yet implemented, but you can provide general guidance about PDF analysis.`
+                text: pdfContent
               })
+
+              // Add extracted images from PDF if any
+              if (file.pdfData?.images && file.pdfData.images.length > 0) {
+                file.pdfData.images.forEach((pdfImage: any) => {
+                  parts.push({
+                    inline_data: {
+                      mime_type: 'image/png', // PDF images are converted to PNG
+                      data: pdfImage.base64.split(',')[1] // Remove data URL prefix
+                    }
+                  } as any) // Type assertion for Gemini API
+                })
+              }
             }
           })
         }
@@ -735,11 +786,24 @@ export class LLMService {
               }
             })
           } else if (file.type === 'pdf') {
-            // For PDFs, add as text description
+            // Enhanced PDF processing with parsed content
+            const pdfContent = this.formatPDFContentForAI(file)
             message.content.push({
               type: 'text',
-              text: `\n\n[PDF File: ${file.file.name}]\nPlease analyze this PDF document. Note: PDF content extraction is not yet implemented, but you can provide general guidance about PDF analysis.`
+              text: pdfContent
             })
+
+            // Add extracted images from PDF if any
+            if (file.pdfData?.images && file.pdfData.images.length > 0) {
+              file.pdfData.images.forEach((pdfImage: any) => {
+                message.content.push({
+                  type: 'image_url',
+                  image_url: {
+                    url: pdfImage.base64
+                  }
+                })
+              })
+            }
           }
         })
       }
@@ -754,4 +818,139 @@ export class LLMService {
 
     return formattedMessages
   }
+
+  /**
+   * Format PDF content for AI analysis
+   */
+  private formatPDFContentForAI(file: any): string {
+    const fileName = file.file.name
+    const fileSize = this.formatFileSize(file.file.size)
+
+    console.log('🔍 Formatting PDF content for AI:', {
+      fileName,
+      fileSize,
+      hasPdfData: !!file.pdfData,
+      pdfData: file.pdfData
+    })
+
+    // Check if we have parsed PDF data
+    if (!file.pdfData) {
+      console.warn('⚠️ No PDF data available for AI analysis')
+      return `\n\n📄 **PDF File: ${fileName}** (${fileSize})\n\n⚠️ PDF parsing was not available. Please analyze this PDF based on the filename and provide general guidance about PDF analysis.`
+    }
+
+    const { text, images, tables, metadata } = file.pdfData
+
+    console.log('📊 PDF data breakdown:', {
+      textLength: text?.length || 0,
+      imagesCount: images?.length || 0,
+      tablesCount: tables?.length || 0,
+      metadata
+    })
+
+    let content = `\n\n📄 **PDF Document Analysis: ${fileName}** (${fileSize})\n\n`
+
+    // Service info
+    content += `🔧 **Parsed with:** ${this.getServiceDisplayName(metadata.service)}\n`
+    content += `📊 **Document Info:** ${metadata.pages} page(s)\n\n`
+
+    // Content summary
+    const features = []
+    if (metadata.hasText && text) features.push(`📝 Text content (${text.length} characters)`)
+    if (metadata.hasImages && images.length > 0) features.push(`🖼️ ${images.length} image(s)`)
+    if (metadata.hasTables && tables.length > 0) features.push(`📋 ${tables.length} table(s)`)
+
+    if (features.length > 0) {
+      content += `✨ **Extracted Content:** ${features.join(', ')}\n\n`
+    }
+
+    // Add extracted text
+    if (text && text.trim()) {
+      content += `📝 **Document Text Content:**\n\n${text}\n\n`
+      console.log('✅ Added text content to AI prompt:', text.substring(0, 200) + '...')
+    } else {
+      console.warn('⚠️ No text content available from PDF parsing')
+      console.warn('⚠️ Text value:', text)
+      console.warn('⚠️ Text type:', typeof text)
+      console.warn('⚠️ Text length:', text?.length)
+
+      // Add a more helpful message for the AI
+      content += `⚠️ **No text content was extracted from this PDF.**
+
+**Possible reasons:**
+- The PDF contains only images/scanned content (requires OCR)
+- The PDF is password protected
+- The PDF has complex formatting that wasn't parsed correctly
+- The parsing service encountered a technical issue
+
+**What you can do:**
+- Try asking me to describe what I can see if there are images
+- Ask me to analyze the document structure or layout
+- Request a different type of analysis based on the filename: "${fileName}"
+
+**PDF Information Available:**
+- File name: ${fileName}
+- File size: ${fileSize}
+- Pages: ${metadata?.pages || 'Unknown'}
+- Service used: ${this.getServiceDisplayName(metadata?.service || 'unknown')}
+
+`
+    }
+
+    // Add table data
+    if (tables && tables.length > 0) {
+      content += `📋 **Tables Found (${tables.length}):**\n\n`
+      tables.forEach((table: any, index: number) => {
+        content += `**Table ${index + 1}:**\n`
+        if (table.html) {
+          content += `${table.html}\n\n`
+        } else if (table.text) {
+          content += `${table.text}\n\n`
+        }
+      })
+      console.log('✅ Added table data to AI prompt')
+    }
+
+    // Add image descriptions
+    if (images && images.length > 0) {
+      content += `🖼️ **Images Found (${images.length}):**\n\n`
+      images.forEach((image: any, index: number) => {
+        content += `**Image ${index + 1}:** ${image.description || `Image from PDF page`}\n`
+      })
+      content += `\n(Images are included separately for visual analysis)\n\n`
+      console.log('✅ Added image descriptions to AI prompt')
+    }
+
+    content += `🤖 **Analysis Request:** Please analyze this PDF document thoroughly. Pay attention to the extracted text, tables, and any images. Provide insights, summaries, or answer questions based on the content.`
+
+    console.log('📤 Final PDF content for AI (length):', content.length)
+    console.log('📤 Final PDF content preview:', content.substring(0, 500) + '...')
+
+    return content
+  }
+
+  /**
+   * Get display name for parsing service
+   */
+  private getServiceDisplayName(service: string): string {
+    const serviceNames: Record<string, string> = {
+      'pdf-co': 'PDF.co (PREMIUM)'
+    }
+    return serviceNames[service] || service
+  }
+
+  /**
+   * Format file size for display
+   */
+  private formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 Bytes'
+
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
 }
+
+export const llmService = new LLMService()
