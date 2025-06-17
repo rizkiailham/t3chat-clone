@@ -339,6 +339,57 @@
   @apply bg-gradient-to-r from-gray-700 to-gray-900 dark:from-gray-300 dark:to-gray-100 bg-clip-text text-transparent;
 }
 
+/* Mobile-Specific Utilities */
+.touch-manipulation {
+  touch-action: manipulation;
+}
+
+/* Prevent zoom on input focus on iOS */
+@media screen and (max-width: 768px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Better mobile scrolling */
+.mobile-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Mobile-friendly button sizes */
+.btn-mobile {
+  @apply min-h-[44px] min-w-[44px] touch-manipulation;
+}
+
+/* Mobile-safe text sizes */
+.text-mobile-safe {
+  font-size: max(16px, 1rem);
+}
+
+/* Prevent horizontal scroll on mobile */
+.mobile-container {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Mobile-optimized spacing */
+.mobile-padding {
+  @apply px-4 sm:px-6 lg:px-8;
+}
+
+.mobile-margin {
+  @apply mx-4 sm:mx-6 lg:mx-8;
+}
+
 /* Prism.js syntax highlighting theme (dark) */
 .token.comment,
 .token.prolog,

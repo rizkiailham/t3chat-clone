@@ -2,7 +2,7 @@
   <div class="flex ml-[-2px] h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 overflow-hidden">
     <!-- Sidebar -->
     <div
-      class="glass border-r border-white/20 dark:border-gray-700/50 flex flex-col transition-all duration-300 ease-out backdrop-blur-xl"
+      class="glass border-r border-white/20 dark:border-gray-700/50 flex flex-col transition-all duration-300 ease-out backdrop-blur-xl mobile-scroll"
       :class="{
         'w-80 translate-x-0 fixed lg:relative z-40 h-full': showSidebar,
         'w-0 -translate-x-full lg:translate-x-0 lg:w-16 lg:relative': !showSidebar,
@@ -68,7 +68,7 @@
       />
 
       <!-- Guest Mode Info -->
-      <div v-if="isGuestMode && (showSidebar || isMobile)" class="flex-1 p-4">
+      <div v-if="isGuestMode && (showSidebar && isMobile) || isGuestMode && (showSidebar && !isMobile)" class="flex-1 p-4">
         <div class="text-center space-y-4">
           <div class="w-16 h-16 mx-auto bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
             <ChatBubbleLeftRightIcon class="w-8 h-8 text-white" />
@@ -91,7 +91,7 @@
       </div>
 
       <!-- User Menu -->
-      <div class="p-3 lg:p-4 border-t border-white/10 dark:border-gray-700/50 mt-auto flex-shrink-0">
+      <div v-if="!isMobile || isMobile && showSidebar" class="p-3 lg:p-4 border-t border-white/10 dark:border-gray-700/50 mt-auto flex-shrink-0">
         <!-- Authenticated User Menu -->
         <div v-if="!isGuestMode && (showSidebar || isMobile)" class="flex items-center space-x-3 p-2 lg:p-3 rounded-xl glass-subtle hover:bg-white/20 dark:hover:bg-gray-700/30 transition-all duration-200 group">
           <div class="relative flex-shrink-0">
@@ -185,78 +185,79 @@
     ></div>
 
     <!-- Main Chat Area with Floating Glass Effect -->
-    <div class="flex-1 flex flex-col min-w-0 relative p-4 lg:pt-8" :class="{'overflow-y-auto': isGuestMode && !guestChatStore.hasMessages}">
+    <div class="flex-1 flex flex-col min-w-0 relative mobile-container mobile-padding pt-4 lg:pt-8" :class="{'overflow-y-auto': isGuestMode && !guestChatStore.hasMessages, 'overflow-y-hidden': !isGuestMode || (isGuestMode && guestChatStore.hasMessages)}">
       <!-- Floating Chat Container -->
-      <div class="flex-1 flex flex-col max-w-4xl mx-auto w-full">
+      <div class="flex-1 flex flex-col max-w-4xl mx-auto w-full mobile-scroll">
         <!-- Floating Chat Header -->
-        <div class="gemini-glass-header mb-2">
+        <div v-if="!isGuestMode || (isGuestMode && guestChatStore.hasMessages)" class="gemini-glass-header mb-2">
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-4">
               <!-- Mobile menu button -->
               <button
                 @click="showSidebar = !showSidebar"
-                class="lg:hidden p-2.5 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/50 dark:hover:bg-gray-700/50 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95"
+                class="lg:hidden p-3 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/50 dark:hover:bg-gray-700/50 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 touch-manipulation"
+                aria-label="Toggle menu"
               >
-                <Bars3Icon class="w-5 h-5" />
+                <Bars3Icon class="w-6 h-6" />
               </button>
 
               <div v-if="!isGuestMode && chatStore.currentConversation" class="animate-fade-in">
-                <h2 class="text-xs lg:text-xl font-bold text-gray-900 dark:text-white">
+                <h2 class="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white truncate">
                   {{ chatStore.currentConversation.title }}
                 </h2>
-                <div class="flex items-center space-x-2 mt-1">
+                <div class="flex items-center space-x-2 mt-1 flex-wrap">
                   <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
                     {{ chatStore.currentConversation.model_provider }}
                   </span>
-                  <span class="text-sm text-gray-500 dark:text-gray-400">
+                  <span class="text-sm text-gray-500 dark:text-gray-400 truncate">
                     {{ chatStore.currentConversation.model_name }}
                   </span>
                 </div>
               </div>
               <div v-else-if="isGuestMode" class="animate-fade-in">
-                <h2 class="text-xl font-bold text-gradient bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
+                <h2 class="text-lg sm:text-xl lg:text-2xl font-bold text-gradient bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
                   T3 Chat - Guest Mode
                 </h2>
                 <!-- Show compact model selector if user has messages, otherwise show current model -->
                 <div v-if="guestChatStore.hasMessages" class="mt-2">
                   <GuestModelSelectorCompact />
                 </div>
-                <div v-else class="flex items-center space-x-2 mt-1">
+                <div v-else class="flex items-center space-x-2 mt-1 flex-wrap">
                   <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300">
                     {{ guestChatStore.currentModel.provider }}
                   </span>
-                  <span class="text-sm text-gray-500 dark:text-gray-400">
+                  <span class="text-sm text-gray-500 dark:text-gray-400 truncate">
                     {{ guestChatStore.currentModel.name }}
                   </span>
                 </div>
               </div>
               <div v-else class="animate-fade-in">
-                <h2 class="text-xl font-bold text-gradient bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                <h2 class="text-lg sm:text-xl lg:text-2xl font-bold text-gradient bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                   T3 Chat
                 </h2>
-                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
                   Select a conversation or start a new chat
                 </p>
               </div>
             </div>
 
-            <div class="flex items-center space-x-2">
+            <div class="flex items-center space-x-1 sm:space-x-2">
               <!-- Debug refresh button (remove in production) -->
               <button
                 @click="handlePageVisible"
-                class="p-2.5 text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 hover:bg-white/50 dark:hover:bg-gray-700/50 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 group"
+                class="p-3 sm:p-2.5 text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 hover:bg-white/50 dark:hover:bg-gray-700/50 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 group touch-manipulation"
                 title="Refresh State (Debug)"
               >
-                <svg class="w-5 h-5 group-hover:rotate-180 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 sm:w-5 sm:h-5 group-hover:rotate-180 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                 </svg>
               </button>
               <button
                 @click="showSettings = true"
-                class="p-2.5 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/50 dark:hover:bg-gray-700/50 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 group"
+                class="p-3 sm:p-2.5 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/50 dark:hover:bg-gray-700/50 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 group touch-manipulation"
                 title="Settings"
               >
-                <CogIcon class="w-5 h-5 group-hover:rotate-90 transition-transform duration-200" />
+                <CogIcon class="w-5 h-5 sm:w-5 sm:h-5 group-hover:rotate-90 transition-transform duration-200" />
               </button>
             </div>
           </div>
@@ -298,48 +299,116 @@
           </div>
 
           <!-- Guest Mode Welcome -->
-          <div v-if="isGuestMode && !guestChatStore.hasMessages" class="h-full flex items-center justify-center p-4">
-            <div class="w-full max-w-4xl space-y-8">
-              <!-- Welcome Header -->
-              <div class="gemini-welcome-card text-center">
-                <div class="relative mb-8">
-                  <div class="w-20 h-20 mx-auto bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
-                    <ChatBubbleLeftRightIcon class="w-10 h-10 text-white" />
-                  </div>
-                  <div class="absolute -top-2 -right-2 w-6 h-6 bg-green-400 rounded-full animate-pulse"></div>
+          <button
+              @click="showSidebar = !showSidebar"
+              class="lg:hidden absolute top p-3 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/50 dark:hover:bg-gray-700/50 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 touch-manipulation"
+              aria-label="Toggle menu"
+            >
+              <Bars3Icon class="w-6 h-6" />
+          </button>
+          <div v-if="isGuestMode && !guestChatStore.hasMessages" class="h-full flex items-center justify-center p-3 sm:p-4">
+            <div class="w-full max-w-2xl space-y-4 sm:space-y-6">
+              <!-- Simplified Welcome Header -->
+              <div class="text-center">
+                <div class="w-12 h-12 sm:w-16 sm:h-16 mx-auto bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg mb-3 sm:mb-4">
+                  <ChatBubbleLeftRightIcon class="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                 </div>
-                <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-3">Welcome, Guest!</h3>
-                <p class="text-gray-600 dark:text-gray-400 mb-4 leading-relaxed">
-                  Start chatting with AI right away. Your conversation won't be saved, but you can experience the full power of our AI models.
+                <h3 class="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">Start Chatting</h3>
+                <p class="text-gray-600 dark:text-gray-400 text-sm leading-relaxed px-2">
+                  Try our AI models instantly • No account required
                 </p>
-                <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mb-6">
-                  <div class="flex items-start space-x-2">
-                    <InformationCircleIcon class="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
-                    <div class="text-sm">
-                      <p class="text-amber-800 dark:text-amber-200 font-medium">Guest Mode Features:</p>
-                      <ul class="text-amber-700 dark:text-amber-300 mt-1 space-y-1">
-                        <li>• Full access to all AI providers and models</li>
-                        <li>• Image uploads supported</li>
-                        <li>• PDF uploads require <button @click="handleSignIn" class="underline hover:text-amber-900 dark:hover:text-amber-100">sign in</button></li>
-                      </ul>
+              </div>
+
+              <!-- Compact Model Selector -->
+              <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+                <div class="space-y-3">
+                  <!-- Current Model Display -->
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                      <div class="w-6 h-6 bg-gradient-to-br from-purple-500 to-blue-600 rounded-md flex items-center justify-center">
+                        <CpuChipIcon class="w-4 h-4 text-white" />
+                      </div>
+                      <span class="text-sm font-medium text-gray-900 dark:text-white">AI Model</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                      <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300">
+                        {{ guestChatStore.currentModel.provider }}
+                      </span>
+                      <span class="text-xs text-gray-600 dark:text-gray-400 hidden sm:inline">
+                        {{ guestChatStore.currentModel.name }}
+                      </span>
                     </div>
                   </div>
+
+                  <!-- Model Selection (Collapsible) -->
+                  <div v-if="showModelSelector" class="space-y-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <select
+                        v-model="selectedProvider"
+                        @change="onProviderChange"
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                      >
+                        <option value="">Select provider...</option>
+                        <option
+                          v-for="provider in availableProviders"
+                          :key="provider.id"
+                          :value="provider.id"
+                        >
+                          {{ provider.name }}
+                        </option>
+                      </select>
+
+                      <select
+                        v-model="selectedModel"
+                        @change="onModelChange"
+                        :disabled="!selectedProvider || !currentProviderModels.length"
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 text-sm"
+                      >
+                        <option value="">Select model...</option>
+                        <option
+                          v-for="model in currentProviderModels"
+                          :key="model.id"
+                          :value="model.id"
+                        >
+                          {{ model.name }}
+                        </option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <!-- Toggle Button -->
+                  <button
+                    @click="showModelSelector = !showModelSelector"
+                    class="w-full text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 py-1 transition-colors"
+                  >
+                    {{ showModelSelector ? 'Hide Options' : 'Change Model' }}
+                  </button>
                 </div>
               </div>
 
-              <!-- Guest Model Selector -->
-              <div class="w-full">
-                <GuestModelSelector />
+              <!-- Quick Actions -->
+              <div class="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                <button
+                  @click="() => handleTestMessage()"
+                  class="flex-1 px-4 py-3 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg transition-colors flex items-center justify-center space-x-2 touch-manipulation"
+                >
+                  <span>💬</span>
+                  <span>Try a Quick Test</span>
+                </button>
+                <button
+                  @click="handleSignIn"
+                  class="px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium rounded-lg transition-colors touch-manipulation"
+                >
+                  Sign In
+                </button>
               </div>
 
-              <!-- Debug Test Button -->
+              <!-- Minimal Info -->
               <div class="text-center">
-                <button
-                  @click="testGuestMode"
-                  class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm transition-colors"
-                >
-                  🧪 Test Guest Chat
-                </button>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                  Guest conversations aren't saved •
+                  <button @click="handleSignIn" class="underline hover:text-gray-700 dark:hover:text-gray-300">Sign in</button> to save chats
+                </p>
               </div>
             </div>
           </div>
@@ -446,7 +515,8 @@ import {
   ExclamationCircleIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  InformationCircleIcon
+  InformationCircleIcon,
+  CpuChipIcon
 } from '@heroicons/vue/24/outline'
 
 import ConversationList from '../Sidebar/ConversationList.vue'
@@ -455,9 +525,8 @@ import ChatInput from './ChatInput.vue'
 import NewChatModal from '../Modals/NewChatModal.vue'
 import SettingsModal from '../Modals/SettingsModal.vue'
 import GuestModeIndicator from '../GuestModeIndicator.vue'
-import GuestModelSelector from '../Guest/GuestModelSelector.vue'
 import GuestModelSelectorCompact from '../Guest/GuestModelSelectorCompact.vue'
-import type { FileAttachment } from '../../types'
+import type { FileAttachment, LLMProvider } from '../../types'
 
 const router = useRouter()
 const route = useRoute()
@@ -542,6 +611,18 @@ const showNewChatModal = ref(false)
 const showSettings = ref(false)
 const showSidebar = ref(true) // Default to expanded
 const componentKey = ref(0) // Force re-render key
+
+// Guest mode model selector variables
+const showModelSelector = ref(false)
+const selectedProvider = ref('')
+const selectedModel = ref('')
+const availableProviders = ref<LLMProvider[]>([])
+
+// Computed properties for guest model selector
+const currentProviderModels = computed(() => {
+  const provider = availableProviders.value.find(p => p.id === selectedProvider.value)
+  return provider?.models || []
+})
 
 
 
@@ -660,9 +741,14 @@ onMounted(async () => {
       }
     }
   } else if (authStore.isGuestMode) {
-    console.log('🎭 Guest mode active')
-    // Load guest model preference
-    guestChatStore.loadGuestModelPreference()
+    console.log('🎭 Guest mode active - initializing fresh state')
+    // Initialize guest mode with fresh state and Gemini default
+    guestChatStore.initializeGuestMode()
+
+    // Initialize guest model selector
+    availableProviders.value = guestChatStore.getAvailableProviders()
+    selectedProvider.value = guestChatStore.currentModel.provider
+    selectedModel.value = guestChatStore.currentModel.name
 
     // For guest mode, redirect to home if trying to access specific conversation
     const conversationId = router.currentRoute.value.params.conversationId as string
@@ -673,7 +759,7 @@ onMounted(async () => {
   } else {
     console.log('❌ User not authenticated and not in guest mode, enabling guest mode instead of redirecting')
     // Instead of redirecting to login, enable guest mode
-    authStore.enableGuestMode()
+    await authStore.enableGuestMode()
   }
 
   // Add browser visibility change handler
@@ -865,6 +951,32 @@ watch(() => authStore.isAuthenticated, (isAuth) => {
     router.push('/login')
   } else if (!isAuth && authStore.isGuestMode) {
     console.log('🎭 User logged out but in guest mode, staying on current page')
+  }
+})
+
+// Watch for guest mode changes to ensure fresh initialization
+watch(() => authStore.isGuestMode, (isGuest, wasGuest) => {
+  console.log('🎭 Guest mode state changed:', { isGuest, wasGuest })
+  if (isGuest && !wasGuest) {
+    console.log('🎭 Guest mode enabled - ensuring fresh initialization')
+    // Initialize guest mode with fresh state and Gemini default
+    guestChatStore.initializeGuestMode()
+
+    // Initialize guest model selector
+    availableProviders.value = guestChatStore.getAvailableProviders()
+    selectedProvider.value = guestChatStore.currentModel.provider
+    selectedModel.value = guestChatStore.currentModel.name
+  } else if (!isGuest && wasGuest) {
+    console.log('🎭 Guest mode disabled - clearing guest state')
+    // Clear guest state when leaving guest mode
+    guestChatStore.clearMessages()
+    guestChatStore.clearError()
+
+    // Clear guest model selector
+    availableProviders.value = []
+    selectedProvider.value = ''
+    selectedModel.value = ''
+    showModelSelector.value = false
   }
 })
 
@@ -1314,24 +1426,44 @@ function testConversationSelection() {
   testSelection()
 }
 
+// Guest mode model selector functions
+function onProviderChange() {
+  // Reset model when provider changes
+  selectedModel.value = ''
+
+  // Auto-select first model if available and apply immediately
+  if (currentProviderModels.value.length > 0) {
+    selectedModel.value = currentProviderModels.value[0].id
+    applyModelChanges()
+  }
+}
+
+function onModelChange() {
+  // Apply model change immediately when user selects
+  if (selectedProvider.value && selectedModel.value) {
+    applyModelChanges()
+  }
+}
+
+function applyModelChanges() {
+  if (selectedProvider.value && selectedModel.value) {
+    guestChatStore.setModel(selectedProvider.value, selectedModel.value)
+    console.log('🎭 Guest model updated:', selectedProvider.value, selectedModel.value)
+  }
+}
+
 function handleSignIn() {
   console.log('🔐 Guest user requesting sign in')
   router.push('/login')
 }
 
-function testGuestMode() {
-  console.log('🧪 Testing guest mode functionality...')
-  console.log('🎭 Current state:', {
-    isGuestMode: authStore.isGuestMode,
-    isAuthenticated: authStore.isAuthenticated,
-    canUseApp: authStore.canUseApp,
-    hasSession: !!authStore.session,
-    hasUser: !!authStore.user
-  })
-
-  // Test sending a message
-  handleSendMessage('Hello! This is a test message from guest mode. The app should stay in guest mode and not redirect to login.')
+function handleTestMessage(message?: string) {
+  console.log('🧪 Handling test message from guest model selector')
+  const testMessage = message || `Hello! This is a test message using ${guestChatStore.currentModel.provider} ${guestChatStore.currentModel.name}. Please respond to confirm the connection is working.`
+  handleSendMessage(testMessage)
 }
+
+
 </script>
 
 <style scoped>

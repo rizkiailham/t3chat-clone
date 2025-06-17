@@ -22,7 +22,7 @@
       </div>
     </div>
 
-    <div class="relative flex items-end gap-3">
+    <div class="relative flex items-end gap-2 sm:gap-3">
       <!-- Text Area -->
       <div class="flex-1 relative">
         <textarea
@@ -32,14 +32,14 @@
           @input="adjustHeight"
           :disabled="disabled"
           placeholder="Message the AI..."
-          class="w-full resize-none border-0 bg-transparent py-4 px-4 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 leading-relaxed rounded-xl"
+          class="w-full resize-none border-0 bg-transparent py-4 px-4 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 leading-relaxed rounded-xl text-base sm:text-sm touch-manipulation"
           style="min-height: 56px; max-height: 200px; overflow-y: auto;"
           rows="1"
         ></textarea>
       </div>
 
       <!-- Action Buttons -->
-      <div class="flex items-center space-x-2 pb-3">
+      <div class="flex items-center space-x-1 sm:space-x-2 pb-3">
         <!-- File Upload Button -->
         <FileUploadButton
           :disabled="disabled"
@@ -53,31 +53,32 @@
         <button
           @click="sendMessage"
           :disabled="!canSend"
-          class="p-3 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 flex-shrink-0"
+          class="p-3 sm:p-3 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 flex-shrink-0 touch-manipulation"
           :class="canSend
             ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-blue-800'
             : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'"
+          aria-label="Send message"
         >
-          <PaperAirplaneIcon class="w-5 h-5" />
+          <PaperAirplaneIcon class="w-5 h-5 sm:w-5 sm:h-5" />
         </button>
       </div>
     </div>
 
     <!-- Character count and shortcuts -->
-    <div class="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mt-2">
-      <div class="flex items-center space-x-4">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm text-gray-500 dark:text-gray-400 mt-2 space-y-2 sm:space-y-0">
+      <div class="flex items-center space-x-2 sm:space-x-4 flex-wrap">
         <span class="hidden sm:inline text-xs opacity-75">
           Shift+Enter for new line • Enter to send
         </span>
         <button
           @click="showFileGuidelines = !showFileGuidelines"
-          class="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+          class="text-xs text-blue-600 dark:text-blue-400 hover:underline touch-manipulation"
         >
           {{ showFileGuidelines ? 'Hide' : 'Show' }} file guidelines
         </button>
       </div>
 
-      <div class="flex items-center space-x-2 text-xs">
+      <div class="flex items-center space-x-2 text-xs flex-wrap">
         <span v-if="attachedFiles.length > 0" class="text-blue-600 dark:text-blue-400">
           {{ attachedFiles.length }} file{{ attachedFiles.length > 1 ? 's' : '' }} attached
         </span>

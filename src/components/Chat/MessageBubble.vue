@@ -1,17 +1,17 @@
 <template>
-  <div class="flex items-start space-x-4 group" :class="{ 'flex-row-reverse space-x-reverse': isUser }">
+  <div class="flex items-start space-x-3 sm:space-x-4 group" :class="{ 'flex-row-reverse space-x-reverse': isUser }">
     <!-- Avatar -->
     <div class="flex-shrink-0">
-      <div v-if="isUser" class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-blue-100 dark:ring-blue-900/30">
-        <span class="text-white text-sm font-bold">{{ userInitial }}</span>
+      <div v-if="isUser" class="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-blue-100 dark:ring-blue-900/30">
+        <span class="text-white text-xs sm:text-sm font-bold">{{ userInitial }}</span>
       </div>
-      <div v-else class="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-purple-100 dark:ring-purple-900/30">
-        <span class="text-white text-sm font-bold">AI</span>
+      <div v-else class="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-purple-100 dark:ring-purple-900/30">
+        <span class="text-white text-xs sm:text-sm font-bold">AI</span>
       </div>
     </div>
 
     <!-- Message Content -->
-    <div class="flex-1 max-w-4xl">
+    <div class="flex-1 max-w-full sm:max-w-4xl min-w-0">
       <!-- Message Attachments (above the bubble) -->
       <MessageAttachments
         v-if="isUser && message.metadata?.attachments"
@@ -19,7 +19,7 @@
       />
 
       <div
-        class="rounded-2xl p-5 shadow-lg backdrop-blur-sm transition-all duration-200 hover:shadow-xl max-w-2xl"
+        class="rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-sm transition-all duration-200 hover:shadow-xl max-w-full sm:max-w-2xl"
         :class="messageClasses"
       >
         <!-- Edit mode -->
@@ -91,30 +91,30 @@
         </div>
 
         <!-- Action buttons -->
-        <div class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+        <div class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-200">
           <button
             v-if="isUser"
             @click="startEdit"
-            class="p-1.5 text-gray-400 dark:text-gray-500 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
+            class="p-2 sm:p-1.5 text-gray-400 dark:text-gray-500 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 touch-manipulation"
             title="Edit message"
           >
-            <PencilIcon class="w-3.5 h-3.5" />
+            <PencilIcon class="w-4 h-4 sm:w-3.5 sm:h-3.5" />
           </button>
           <button
             @click="copyMessage"
-            class="p-1.5 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
+            class="p-2 sm:p-1.5 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 touch-manipulation"
             title="Copy message"
           >
-            <ClipboardIcon class="w-3.5 h-3.5" />
+            <ClipboardIcon class="w-4 h-4 sm:w-3.5 sm:h-3.5" />
           </button>
 
           <button
             v-if="!isUser"
             @click="regenerateMessage"
-            class="p-1.5 text-gray-400 dark:text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
+            class="p-2 sm:p-1.5 text-gray-400 dark:text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 touch-manipulation"
             title="Regenerate response"
           >
-            <ArrowPathIcon class="w-3.5 h-3.5" />
+            <ArrowPathIcon class="w-4 h-4 sm:w-3.5 sm:h-3.5" />
           </button>
         </div>
       </div>

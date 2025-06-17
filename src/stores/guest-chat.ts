@@ -29,12 +29,34 @@ export const useGuestChatStore = defineStore('guest-chat', () => {
     currentModel.value = { provider, name: model }
     console.log('🎭 Guest mode: Model changed to', provider, model)
 
-    // Save guest model preference to localStorage
+    // Always refresh localStorage with new model preference
+    refreshGuestModelInStorage()
+  }
+
+  function refreshGuestModelInStorage() {
     try {
+      // Remove old preference first to ensure fresh state
+      localStorage.removeItem('guest-chat-model')
+
+      // Set new preference
       localStorage.setItem('guest-chat-model', JSON.stringify(currentModel.value))
+      console.log('🔄 Guest mode: localStorage refreshed with model:', currentModel.value)
     } catch (error) {
-      console.warn('Failed to save guest model preference:', error)
+      console.warn('Failed to refresh guest model preference in localStorage:', error)
     }
+  }
+
+  function initializeGuestMode() {
+    console.log('🎭 Guest mode: Initializing...')
+
+    // Always start fresh - clear any existing guest data
+    clearMessages()
+    clearError()
+
+    // Ensure we start with Gemini as default
+    resetToDefaultModel()
+
+    console.log('✅ Guest mode: Initialized with Gemini default')
   }
 
   function loadGuestModelPreference() {
@@ -42,11 +64,38 @@ export const useGuestChatStore = defineStore('guest-chat', () => {
       const saved = localStorage.getItem('guest-chat-model')
       if (saved) {
         const parsed = JSON.parse(saved)
-        currentModel.value = parsed
-        console.log('🎭 Guest mode: Loaded saved model preference', parsed)
+        // Validate that the saved model is still available
+        const providers = getAvailableProviders()
+        const savedProvider = providers.find(p => p.id === parsed.provider)
+        const savedModel = savedProvider?.models.find(m => m.id === parsed.name)
+
+        if (savedProvider && savedModel) {
+          currentModel.value = parsed
+          console.log('🎭 Guest mode: Loaded saved model preference', parsed)
+        } else {
+          console.log('🎭 Guest mode: Saved model no longer available, using default Gemini')
+          resetToDefaultModel()
+        }
+      } else {
+        console.log('🎭 Guest mode: No saved preference, using default Gemini')
+        resetToDefaultModel()
       }
     } catch (error) {
       console.warn('Failed to load guest model preference:', error)
+      resetToDefaultModel()
+    }
+  }
+
+  function resetToDefaultModel() {
+    // Always default to Gemini 2.0 Flash for best guest experience
+    currentModel.value = { provider: 'google', name: 'gemini-2.0-flash' }
+    console.log('🎭 Guest mode: Reset to default Gemini model')
+
+    // Save the default to localStorage
+    try {
+      localStorage.setItem('guest-chat-model', JSON.stringify(currentModel.value))
+    } catch (error) {
+      console.warn('Failed to save default guest model preference:', error)
     }
   }
 
@@ -122,7 +171,16 @@ export const useGuestChatStore = defineStore('guest-chat', () => {
         content,
         stream,
         model: currentModel.value.name,
+        provider: currentModel.value.provider,
         fileCount: files?.length || 0
+      })
+
+      console.log('🔍 Guest mode: LLM Service call parameters:', {
+        provider: currentModel.value.provider,
+        model: currentModel.value.name,
+        messageCount: messages.value.length,
+        stream,
+        hasFiles: !!files?.length
       })
 
       // Add user message
@@ -165,26 +223,68 @@ export const useGuestChatStore = defineStore('guest-chat', () => {
       messages.value.push(assistantMessage)
 
       if (stream) {
-        // Stream response
-        const messageGenerator = llmService.streamMessage({
-          messages: llmMessages,
-          model: currentModel.value.name,
-          provider: currentModel.value.provider,
-          stream: true,
-          files
-        })
-
+        // Stream response with fallback (same as authenticated mode)
         let fullContent = ''
-        for await (const chunk of messageGenerator) {
-          fullContent += chunk
-          // Update the last message (assistant message)
-          const lastMessage = messages.value[messages.value.length - 1]
-          if (lastMessage && lastMessage.role === 'assistant') {
-            lastMessage.content = fullContent
+        let hasContent = false
+        let streamError: any = null
+
+        try {
+          console.log('🎭 Guest mode: Starting streaming...')
+          const messageGenerator = llmService.streamMessage({
+            messages: llmMessages,
+            model: currentModel.value.name,
+            provider: currentModel.value.provider,
+            stream: true,
+            files
+          })
+
+          for await (const chunk of messageGenerator) {
+            fullContent += chunk
+            hasContent = true
+            // Update the last message (assistant message)
+            const lastMessage = messages.value[messages.value.length - 1]
+            if (lastMessage && lastMessage.role === 'assistant') {
+              lastMessage.content = fullContent
+            }
+          }
+          console.log('✅ Guest mode: Streaming completed successfully')
+        } catch (err) {
+          console.log('❌ Guest mode: Streaming failed, trying non-streaming fallback...', err)
+          streamError = err
+          hasContent = false
+        }
+
+        // Fallback to non-streaming if streaming failed or no content
+        if (!hasContent || !fullContent.trim()) {
+          console.log('🔄 Guest mode: Using non-streaming fallback...')
+          try {
+            const response = await llmService.sendMessage({
+              messages: llmMessages,
+              model: currentModel.value.name,
+              provider: currentModel.value.provider,
+              stream: false,
+              files
+            })
+
+            fullContent = response.choices[0].message.content
+            const lastMessage = messages.value[messages.value.length - 1]
+            if (lastMessage && lastMessage.role === 'assistant') {
+              lastMessage.content = fullContent
+              lastMessage.metadata = {
+                model: response.model,
+                tokens: response.usage?.total_tokens,
+                finish_reason: response.choices[0].finish_reason
+              }
+            }
+            console.log('✅ Guest mode: Non-streaming fallback completed successfully')
+          } catch (fallbackError) {
+            console.error('❌ Guest mode: Both streaming and fallback failed:', fallbackError)
+            throw streamError || fallbackError
           }
         }
       } else {
         // Non-stream response
+        console.log('🎭 Guest mode: Using non-streaming response...')
         const response = await llmService.sendMessage({
           messages: llmMessages,
           model: currentModel.value.name,
@@ -203,12 +303,32 @@ export const useGuestChatStore = defineStore('guest-chat', () => {
             finish_reason: response.choices[0].finish_reason
           }
         }
+        console.log('✅ Guest mode: Non-streaming response completed successfully')
       }
 
     } catch (err: any) {
       console.error('❌ Guest mode: Error sending message:', err)
-      error.value = err.message || 'Failed to send message'
-      
+
+      // Enhanced error handling similar to authenticated mode
+      let errorMessage = err.message || 'Failed to send message'
+
+      // Show user-friendly error messages
+      if (err.message?.includes('API key not configured')) {
+        errorMessage = 'Please configure your API key in the .env file'
+      } else if (err.message?.includes('401')) {
+        errorMessage = 'Invalid API key. Please check your configuration.'
+      } else if (err.message?.includes('429')) {
+        errorMessage = 'Rate limit exceeded. Please try again later.'
+      } else if (err.message?.includes('insufficient_quota')) {
+        errorMessage = 'API quota exceeded. Please check your billing.'
+      } else if (err.message?.includes('Google API error')) {
+        errorMessage = 'Google/Gemini service temporarily unavailable. Please try again.'
+      } else if (err.message?.includes('OpenAI API error')) {
+        errorMessage = 'OpenAI service temporarily unavailable. Please try again.'
+      }
+
+      error.value = errorMessage
+
       // Remove the failed assistant message
       if (messages.value.length > 0 && messages.value[messages.value.length - 1].role === 'assistant' && !messages.value[messages.value.length - 1].content) {
         messages.value.pop()
@@ -271,6 +391,9 @@ export const useGuestChatStore = defineStore('guest-chat', () => {
     clearMessages,
     setModel,
     loadGuestModelPreference,
-    getAvailableProviders
+    getAvailableProviders,
+    initializeGuestMode,
+    refreshGuestModelInStorage,
+    resetToDefaultModel
   }
 })

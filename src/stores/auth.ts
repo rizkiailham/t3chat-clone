@@ -52,7 +52,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function enableGuestMode() {
+  async function enableGuestMode() {
     console.log('🎭 Enabling guest mode')
     console.log('🎭 Current state before enabling guest mode:', {
       isAuthenticated: isAuthenticated.value,
@@ -60,10 +60,22 @@ export const useAuthStore = defineStore('auth', () => {
       hasUser: !!user.value,
       hasSession: !!session.value
     })
+
+    // Clear auth state
     isGuestMode.value = true
     user.value = null
     session.value = null
     error.value = null
+
+    // Initialize guest chat store with fresh state
+    try {
+      const { useGuestChatStore } = await import('./guest-chat')
+      const guestChatStore = useGuestChatStore()
+      guestChatStore.initializeGuestMode()
+    } catch (importError) {
+      console.warn('⚠️ Could not initialize guest chat store:', importError)
+    }
+
     console.log('🎭 Guest mode enabled successfully')
     console.log('🎭 New state after enabling guest mode:', {
       isAuthenticated: isAuthenticated.value,

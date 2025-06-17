@@ -180,7 +180,19 @@ export class LLMService {
     const anthropicKey = import.meta.env.VITE_ANTHROPIC_API_KEY
     const googleKey = import.meta.env.VITE_GOOGLE_API_KEY
 
-    console.log(`Starting stream for ${provider}`)
+    console.log(`🚀 Starting stream for ${provider}:`, {
+      provider,
+      model,
+      messageCount: messages.length,
+      hasFiles: !!files?.length,
+      maxTokens: max_tokens
+    })
+
+    console.log('🔑 API Keys check:', {
+      openai: !!openaiKey,
+      anthropic: !!anthropicKey,
+      google: !!googleKey
+    })
 
     // If no API keys are configured, use demo mode
     if (!openaiKey && !anthropicKey && !googleKey) {
@@ -209,10 +221,11 @@ export class LLMService {
           break
         case 'google':
           if (!googleKey) {
-            console.log('Google key not available, falling back to demo streaming')
+            console.log('❌ Google key not available, falling back to demo streaming')
             yield* this.streamDemoMessage(request)
             return
           }
+          console.log('✅ Google key available, calling streamGoogleMessage')
           yield* this.streamGoogleMessage({ model, messages, temperature, max_tokens, files })
           break
         default:
