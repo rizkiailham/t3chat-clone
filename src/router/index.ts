@@ -10,7 +10,7 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: ChatInterface,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: false, allowGuest: true }
     },
     {
       path: '/login',
@@ -45,28 +45,56 @@ const router = createRouter({
 
 // Navigation guards
 router.beforeEach(async (to, from, next) => {
+  console.log('🛣️ Router guard triggered:', {
+    to: to.name,
+    from: from.name,
+    path: to.path,
+    meta: to.meta
+  })
+
   const authStore = useAuthStore()
 
-  // Initialize auth if not already done
-  if (!authStore.session && !authStore.loading) {
+  // Initialize auth if not already done and not in guest mode
+  if (!authStore.session && !authStore.loading && !authStore.isGuestMode) {
+    console.log('🔐 Initializing auth...')
     await authStore.initializeAuth()
   }
 
-  // Wait a bit for auth to initialize
+  // Wait a bit for auth to initialize (but not if in guest mode)
   let attempts = 0
-  while (authStore.loading && attempts < 10) {
+  while (authStore.loading && attempts < 10 && !authStore.isGuestMode) {
     await new Promise(resolve => setTimeout(resolve, 100))
     attempts++
   }
 
+  console.log('🔐 Auth state after initialization:', {
+    isAuthenticated: authStore.isAuthenticated,
+    isGuestMode: authStore.isGuestMode,
+    hasSession: !!authStore.session,
+    loading: authStore.loading
+  })
+
   // Allow access to shared conversations without authentication
   if (to.name === 'shared-conversation') {
+    console.log('🔗 Allowing access to shared conversation')
     next()
-  } else if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+  } else if (to.meta.requiresAuth && !authStore.isAuthenticated && !authStore.isGuestMode) {
+    console.log('🔐 Route requires auth but user not authenticated and not in guest mode, redirecting to login')
     next('/login')
   } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
+    console.log('🔐 Route requires guest but user authenticated, redirecting to home')
     next('/')
+  } else if (to.meta.allowGuest && !authStore.isAuthenticated && !authStore.isGuestMode) {
+    // Enable guest mode for routes that allow it
+    console.log('🎭 Route allows guest and user not authenticated, enabling guest mode')
+    authStore.enableGuestMode()
+    next()
+  } else if (authStore.isGuestMode) {
+    // Always allow navigation if in guest mode
+    console.log('🎭 In guest mode, allowing navigation')
+    next()
   } else {
+    console.log('✅ Allowing navigation')
     next()
   }
 })

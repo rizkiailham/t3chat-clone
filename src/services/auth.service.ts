@@ -2,6 +2,18 @@ import { supabase } from './supabase'
 import { axiosAuthService } from './axios-auth.service'
 import type { User } from '../types'
 
+// Helper function to check if in guest mode
+function isInGuestMode(): boolean {
+  try {
+    // Import the auth store to check guest mode
+    const { useAuthStore } = require('../stores/auth')
+    const authStore = useAuthStore()
+    return authStore.isGuestMode
+  } catch {
+    return false
+  }
+}
+
 export class AuthService {
   // Sign in with Google using Axios
   async signInWithGoogle() {
@@ -28,6 +40,10 @@ export class AuthService {
   // Get current session using Axios
   async getSession() {
     try {
+      if (isInGuestMode()) {
+        console.log('🎭 In guest mode, skipping getSession API call')
+        return null
+      }
       console.log('🔍 Getting session via Axios...')
       return await axiosAuthService.getSession()
     } catch (error) {
@@ -39,6 +55,10 @@ export class AuthService {
   // Get current user using Axios
   async getCurrentUser(forceRefresh = false): Promise<User | null> {
     try {
+      if (isInGuestMode()) {
+        console.log('🎭 In guest mode, skipping getCurrentUser API call')
+        return null
+      }
       console.log('🔍 Getting current user via Axios...')
       return await axiosAuthService.getCurrentUser(forceRefresh)
     } catch (error) {
@@ -60,12 +80,23 @@ export class AuthService {
 
   // Listen to auth state changes (still using Supabase for real-time events)
   onAuthStateChange(callback: (event: string, session: any) => void) {
-    return supabase.auth.onAuthStateChange(callback)
+    return supabase.auth.onAuthStateChange((event, session) => {
+      // Don't trigger callback if in guest mode
+      if (isInGuestMode()) {
+        console.log('🎭 In guest mode, ignoring auth state change:', event)
+        return
+      }
+      callback(event, session)
+    })
   }
 
   // Refresh session using Axios
   async refreshSession() {
     try {
+      if (isInGuestMode()) {
+        console.log('🎭 In guest mode, skipping refreshSession API call')
+        return null
+      }
       console.log('🔍 Refreshing session via Axios...')
       return await axiosAuthService.refreshSession()
     } catch (error) {

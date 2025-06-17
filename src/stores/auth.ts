@@ -10,8 +10,10 @@ export const useAuthStore = defineStore('auth', () => {
   const session = ref<any | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
+  const isGuestMode = ref(false)
 
   const isAuthenticated = computed(() => !!user.value)
+  const canUseApp = computed(() => isAuthenticated.value || isGuestMode.value)
 
   async function signInWithGoogle() {
     try {
@@ -30,9 +32,18 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       loading.value = true
       error.value = null
-      await authService.signOut()
+
+      // If in guest mode, just clear local state
+      if (isGuestMode.value) {
+        console.log('🎭 Signing out from guest mode')
+        disableGuestMode()
+      } else {
+        await authService.signOut()
+      }
+
       user.value = null
       session.value = null
+      isGuestMode.value = false
     } catch (err: any) {
       error.value = err.message || 'Failed to sign out'
       throw err
@@ -41,8 +52,39 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  function enableGuestMode() {
+    console.log('🎭 Enabling guest mode')
+    console.log('🎭 Current state before enabling guest mode:', {
+      isAuthenticated: isAuthenticated.value,
+      isGuestMode: isGuestMode.value,
+      hasUser: !!user.value,
+      hasSession: !!session.value
+    })
+    isGuestMode.value = true
+    user.value = null
+    session.value = null
+    error.value = null
+    console.log('🎭 Guest mode enabled successfully')
+    console.log('🎭 New state after enabling guest mode:', {
+      isAuthenticated: isAuthenticated.value,
+      isGuestMode: isGuestMode.value,
+      canUseApp: canUseApp.value
+    })
+  }
+
+  function disableGuestMode() {
+    console.log('🎭 Disabling guest mode')
+    isGuestMode.value = false
+  }
+
   async function getCurrentUser() {
     try {
+      // Don't make API calls if in guest mode
+      if (isGuestMode.value) {
+        console.log('🎭 In guest mode, skipping getCurrentUser API call')
+        return null
+      }
+
       loading.value = true
       error.value = null
       const currentUser = await authService.getCurrentUser()
@@ -59,6 +101,12 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function getSession() {
     try {
+      // Don't make API calls if in guest mode
+      if (isGuestMode.value) {
+        console.log('🎭 In guest mode, skipping getSession API call')
+        return null
+      }
+
       const currentSession = await authService.getSession()
       session.value = currentSession
       return currentSession
@@ -73,6 +121,12 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       console.log('🔐 Initializing authentication...')
 
+      // Don't initialize auth if already in guest mode
+      if (isGuestMode.value) {
+        console.log('🎭 Already in guest mode, skipping auth initialization')
+        return
+      }
+
       // Get initial session first
       const currentSession = await getSession()
 
@@ -85,6 +139,12 @@ export const useAuthStore = defineStore('auth', () => {
 
       // Then listen to auth state changes
       authService.onAuthStateChange(async (event, newSession) => {
+        // Don't handle auth state changes if in guest mode
+        if (isGuestMode.value) {
+          console.log('🎭 In guest mode, ignoring auth state change:', event)
+          return
+        }
+
         console.log('🔐 Auth state change:', event, !!newSession)
         session.value = newSession
 
@@ -111,6 +171,12 @@ export const useAuthStore = defineStore('auth', () => {
   async function refreshAuth(skipChatRefresh: boolean = false) {
     try {
       console.log('🔄 Refreshing authentication state...', { skipChatRefresh })
+
+      // Don't refresh auth if in guest mode
+      if (isGuestMode.value) {
+        console.log('🎭 In guest mode, skipping auth refresh')
+        return
+      }
 
       // First try to refresh the session
       try {
@@ -158,6 +224,12 @@ export const useAuthStore = defineStore('auth', () => {
   // Lightweight token refresh that doesn't trigger chat state refresh
   async function refreshTokenOnly() {
     try {
+      // Don't make API calls if in guest mode
+      if (isGuestMode.value) {
+        console.log('🎭 In guest mode, skipping token refresh API call')
+        return
+      }
+
       console.log('🔑 Refreshing token only...')
       await authService.refreshSession()
 
@@ -198,9 +270,11 @@ export const useAuthStore = defineStore('auth', () => {
     session,
     loading,
     error,
+    isGuestMode,
 
     // Getters
     isAuthenticated,
+    canUseApp,
 
     // Actions
     signInWithGoogle,
@@ -211,6 +285,8 @@ export const useAuthStore = defineStore('auth', () => {
     refreshAuth,
     refreshTokenOnly,
     handleAuthCallback,
-    clearError
+    clearError,
+    enableGuestMode,
+    disableGuestMode
   }
 })

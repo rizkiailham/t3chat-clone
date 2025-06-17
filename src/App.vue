@@ -23,10 +23,12 @@ onMounted(() => {
   // Add global visibility change handler
   visibilityChangeHandler = () => {
     console.log('👁️ Global visibility changed:', document.visibilityState)
-    if (document.visibilityState === 'visible') {
+    if (document.visibilityState === 'visible' && !authStore.isGuestMode) {
       console.log('🔄 App became visible, light auth refresh...')
       // Light refresh auth state when app becomes visible (no chat refresh)
       authStore.refreshTokenOnly().catch(console.error)
+    } else if (authStore.isGuestMode) {
+      console.log('🎭 App became visible but in guest mode, skipping auth refresh')
     }
   }
 

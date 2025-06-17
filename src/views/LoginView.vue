@@ -51,6 +51,28 @@
           {{ authStore.loading ? 'Signing in...' : 'Continue with Google' }}
         </button>
 
+        <!-- Guest Mode Option -->
+        <div class="mt-4 relative">
+          <div class="absolute inset-0 flex items-center">
+            <div class="w-full border-t border-gray-300 dark:border-gray-600"></div>
+          </div>
+          <div class="relative flex justify-center text-sm">
+            <span class="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">or</span>
+          </div>
+        </div>
+
+        <button
+          @click="handleGuestMode"
+          class="mt-4 w-full flex items-center justify-center px-4 py-3 border border-amber-300 dark:border-amber-600 rounded-lg shadow-sm bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200 hover:scale-105 active:scale-95"
+        >
+          <ChatBubbleLeftRightIcon class="w-5 h-5 mr-3" />
+          Continue as Guest
+        </button>
+
+        <p class="mt-3 text-xs text-center text-gray-500 dark:text-gray-400">
+          Guest mode: Chat with AI without saving conversations
+        </p>
+
         <!-- Features -->
         <div class="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
           <h3 class="text-sm font-medium text-gray-900 dark:text-white mb-4">
@@ -134,6 +156,16 @@ async function handleGoogleSignIn() {
     // The redirect will be handled by the auth callback
   } catch (error) {
     console.error('Sign in failed:', error)
+  }
+}
+
+function handleGuestMode() {
+  try {
+    authStore.clearError()
+    authStore.enableGuestMode()
+    router.push('/')
+  } catch (error) {
+    console.error('Failed to enable guest mode:', error)
   }
 }
 </script>
