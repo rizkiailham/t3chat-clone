@@ -21,6 +21,14 @@ export interface Conversation {
   shared_at?: string
 }
 
+export interface MessageAttachment {
+  name: string
+  type: 'image' | 'pdf'
+  size: number
+  base64: string
+  content?: string
+}
+
 export interface Message {
   id: string
   conversation_id: string
@@ -32,6 +40,7 @@ export interface Message {
     tokens?: number
     finish_reason?: string
     files?: number // Number of files attached
+    attachments?: MessageAttachment[] // File attachment data
     [key: string]: any // Allow additional metadata
   }
 }

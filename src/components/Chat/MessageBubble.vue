@@ -12,6 +12,12 @@
 
     <!-- Message Content -->
     <div class="flex-1 max-w-4xl">
+      <!-- Message Attachments (above the bubble) -->
+      <MessageAttachments
+        v-if="isUser && message.metadata?.attachments"
+        :attachments="message.metadata.attachments"
+      />
+
       <div
         class="rounded-2xl p-5 shadow-lg backdrop-blur-sm transition-all duration-200 hover:shadow-xl"
         :class="messageClasses"
@@ -121,6 +127,7 @@ import { computed, ref, nextTick, onMounted, onUnmounted } from 'vue'
 import { ClipboardIcon, ArrowPathIcon, PencilIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '../../stores/auth'
 import { formatCodeBlock } from '../../utils/syntax-highlighter'
+import MessageAttachments from './MessageAttachments.vue'
 import type { Message } from '../../types'
 
 interface Props {

@@ -343,7 +343,16 @@ export const useChatStore = defineStore('chat', () => {
         conversation_id: currentConversation.value.id,
         role: 'user' as const,
         content,
-        metadata: files && files.length > 0 ? { files: files.length } : undefined
+        metadata: files && files.length > 0 ? {
+          files: files.length,
+          attachments: files.map(file => ({
+            name: file.file.name,
+            type: file.type,
+            size: file.file.size,
+            base64: file.base64,
+            content: file.content
+          }))
+        } : undefined
       }
 
       const savedUserMessage = await axiosDb.createMessage(userMessage)

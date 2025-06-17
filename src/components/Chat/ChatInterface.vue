@@ -228,7 +228,7 @@
             </div>
 
             <!-- Messages Area (Dynamic Height) -->
-            <div ref="messagesContainer" class="flex-1 overflow-y-auto space-y-4 min-h-0" :style="messagesContainerStyle">
+            <div ref="messagesContainer" class="flex-1 overflow-y-auto space-y-4" :style="messagesContainerStyle">
               <MessageBubble
                 v-for="message in chatStore.messages"
                 :key="message.id"
@@ -372,15 +372,17 @@ const messagesContainerStyle = computed(() => {
   const inputAreaHeight = inputHeight.value + 90 // Add extra padding for floating container
 
   if (isMobile.value) {
-    // On mobile, account for more space for the input area
-    return {
-      maxHeight: `calc(100vh - ${Math.max(260, inputAreaHeight + 100)}px)`
-    }
+  // On mobile, account for more space for the input area
+  return {
+    maxHeight: `calc(100vh - ${Math.max(260, inputAreaHeight + 100)}px)`,
+    minHeight: `calc(100vh - ${Math.max(260, inputAreaHeight + 100)}px)` // Assuming minHeight should be the same as maxHeight for this specific case
+  }
   } else {
-    // On desktop, account for the floating input and header
-    return {
-      maxHeight: `calc(100vh - ${Math.max(290, inputAreaHeight + 100)}px)`
-    }
+  // On desktop, account for the floating input and header
+  return {
+    maxHeight: `calc(100vh - ${Math.max(290, inputAreaHeight + 100)}px)`,
+    minHeight: `calc(100vh - ${Math.max(290, inputAreaHeight + 100)}px)` // Assuming minHeight should be the same as maxHeight for this specific case
+  }
   }
 });
 

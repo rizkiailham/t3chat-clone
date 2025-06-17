@@ -17,8 +17,8 @@
       <div class="flex items-center space-x-2 mb-2">
         <span
           class="text-sm font-semibold"
-          :class="message.role === 'user' 
-            ? 'text-blue-700 dark:text-blue-300' 
+          :class="message.role === 'user'
+            ? 'text-blue-700 dark:text-blue-300'
             : 'text-purple-700 dark:text-purple-300'"
         >
           {{ message.role === 'user' ? 'You' : 'Assistant' }}
@@ -27,6 +27,12 @@
           {{ formatTime(message.created_at) }}
         </span>
       </div>
+
+      <!-- Message Attachments (above the bubble) -->
+      <MessageAttachments
+        v-if="message.role === 'user' && message.metadata?.attachments"
+        :attachments="message.metadata.attachments"
+      />
 
       <!-- Message Bubble -->
       <div
@@ -61,6 +67,7 @@ import { computed } from 'vue'
 import { UserIcon, SparklesIcon, ClipboardIcon } from '@heroicons/vue/24/outline'
 import type { Message } from '../../types'
 import MarkdownRenderer from './MarkdownRenderer.vue'
+import MessageAttachments from './MessageAttachments.vue'
 
 interface Props {
   message: Message
