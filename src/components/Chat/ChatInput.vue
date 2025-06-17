@@ -15,7 +15,8 @@
           <p class="font-medium mb-1">Supported file types:</p>
           <ul class="list-disc list-inside space-y-1 text-xs">
             <li><strong>Images:</strong> JPEG, PNG, GIF, WebP (max 5MB)</li>
-            <li><strong>PDFs:</strong> PDF documents (max 10MB)</li>
+            <li v-if="!props.isGuestMode"><strong>PDFs:</strong> PDF documents (max 10MB)</li>
+            <li v-else class="text-amber-600 dark:text-amber-400"><strong>PDFs:</strong> Requires sign-in</li>
           </ul>
         </div>
       </div>
@@ -43,6 +44,7 @@
         <FileUploadButton
           :disabled="disabled"
           :current-file-count="attachedFiles.length"
+          :is-guest-mode="props.isGuestMode"
           @files-selected="handleFilesSelected"
           @error="handleFileError"
         />
@@ -79,7 +81,9 @@
         <span v-if="attachedFiles.length > 0" class="text-blue-600 dark:text-blue-400">
           {{ attachedFiles.length }} file{{ attachedFiles.length > 1 ? 's' : '' }} attached
         </span>
-        <span class="opacity-75">{{ message.length }}/4000</span>
+        <span class="opacity-75" :class="{ 'text-red-500': message.length > maxCharacters }">
+          {{ message.length }}/{{ maxCharacters.toLocaleString() }}
+        </span>
       </div>
     </div>
 
@@ -99,6 +103,12 @@ import type { FileAttachment } from '../../types'
 
 interface Props {
   disabled?: boolean
+  isGuestMode?: boolean
+  currentModel?: {
+    provider: string
+    name: string
+    context_length?: number
+  }
 }
 
 interface Emits {
@@ -107,7 +117,9 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  disabled: false
+  disabled: false,
+  isGuestMode: false,
+  currentModel: () => ({ provider: '', name: '', context_length: 4000 })
 })
 
 const emit = defineEmits<Emits>()
@@ -118,16 +130,35 @@ const attachedFiles = ref<FileAttachment[]>([])
 const showFileGuidelines = ref(false)
 const fileError = ref<string | null>(null)
 
+// Dynamic character limit based on model's context length
+const maxCharacters = computed(() => {
+  const contextLength = props.currentModel?.context_length || 4000
+  // Conservative estimate: 1 token ≈ 4 characters for English text
+  // Reserve 25% of context for response and system messages
+  const usableTokens = Math.floor(contextLength * 0.75)
+  const maxChars = usableTokens * 4
+
+  // Set reasonable bounds: minimum 4000, maximum 200000 characters
+  return Math.max(4000, Math.min(maxChars, 200000))
+})
+
 const canSend = computed(() => {
   const hasMessage = message.value.trim().length > 0
   const hasFiles = attachedFiles.value.length > 0
-  const isValidLength = message.value.length <= 4000
+  const isValidLength = message.value.length <= maxCharacters.value
 
   return (hasMessage || hasFiles) && !props.disabled && isValidLength
 })
 
-// Watch for file changes to adjust height
+// Watch for file changes and guidelines to adjust height
 watch(() => attachedFiles.value.length, () => {
+  nextTick(() => {
+    adjustHeight()
+  })
+})
+
+// Watch for guidelines visibility to adjust height
+watch(() => showFileGuidelines.value, () => {
   nextTick(() => {
     adjustHeight()
   })
@@ -287,7 +318,12 @@ function calculateTotalInputHeight(): number {
     totalHeight += filePreviewHeight + 12 // Add margin
   }
 
-  // Add space for character count and guidelines
+  // Add file guidelines height if shown
+  if (showFileGuidelines.value) {
+    totalHeight += 80 // Approximate height of guidelines box + margin
+  }
+
+  // Add space for character count and controls
   totalHeight += 40
 
   return totalHeight

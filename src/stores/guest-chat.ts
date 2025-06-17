@@ -10,7 +10,8 @@ export const useGuestChatStore = defineStore('guest-chat', () => {
   const loading = ref(false)
   const streaming = ref(false)
   const error = ref<string | null>(null)
-  const currentModel = ref({ provider: 'openai', name: 'gpt-4o' })
+  // Default to Google Gemini for better guest experience
+  const currentModel = ref({ provider: 'google', name: 'gemini-2.0-flash' })
 
   const currentMessages = computed(() => messages.value)
   const hasMessages = computed(() => messages.value.length > 0)
@@ -27,6 +28,76 @@ export const useGuestChatStore = defineStore('guest-chat', () => {
   function setModel(provider: string, model: string) {
     currentModel.value = { provider, name: model }
     console.log('🎭 Guest mode: Model changed to', provider, model)
+
+    // Save guest model preference to localStorage
+    try {
+      localStorage.setItem('guest-chat-model', JSON.stringify(currentModel.value))
+    } catch (error) {
+      console.warn('Failed to save guest model preference:', error)
+    }
+  }
+
+  function loadGuestModelPreference() {
+    try {
+      const saved = localStorage.getItem('guest-chat-model')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        currentModel.value = parsed
+        console.log('🎭 Guest mode: Loaded saved model preference', parsed)
+      }
+    } catch (error) {
+      console.warn('Failed to load guest model preference:', error)
+    }
+  }
+
+  function getAvailableProviders() {
+    // Return hardcoded providers for guest mode to avoid import issues
+    return [
+      {
+        id: 'google',
+        name: 'Google Gemini',
+        requiresApiKey: false,
+        models: [
+          {
+            id: 'gemini-2.0-flash',
+            name: 'Gemini 2.0 Flash',
+            description: 'Latest Gemini model with enhanced capabilities and speed',
+            context_length: 1048576
+          },
+          {
+            id: 'gemini-1.5-pro',
+            name: 'Gemini 1.5 Pro',
+            description: 'Advanced reasoning and multimodal understanding',
+            context_length: 2097152
+          }
+        ]
+      },
+      {
+        id: 'openai',
+        name: 'OpenAI',
+        requiresApiKey: false,
+        models: [
+          {
+            id: 'gpt-4o',
+            name: 'GPT-4o',
+            description: 'Most advanced GPT-4 model with enhanced capabilities',
+            context_length: 128000
+          },
+          {
+            id: 'gpt-4o-mini',
+            name: 'GPT-4o Mini',
+            description: 'Efficient and fast GPT-4 model for quick responses',
+            context_length: 128000
+          },
+          {
+            id: 'gpt-3.5-turbo',
+            name: 'GPT-3.5 Turbo',
+            description: 'Fast and efficient model for general conversations',
+            context_length: 16385
+          }
+        ]
+      }
+    ]
   }
 
   async function sendMessage(content: string, files?: FileAttachment[], stream = true) {
@@ -198,6 +269,8 @@ export const useGuestChatStore = defineStore('guest-chat', () => {
     regenerateMessage,
     clearError,
     clearMessages,
-    setModel
+    setModel,
+    loadGuestModelPreference,
+    getAvailableProviders
   }
 })

@@ -13,6 +13,7 @@ A modern, feature-rich AI chat application built with Vue.js, featuring multiple
 
 ### 🔐 **Authentication & Security**
 - **Google OAuth 2.0**: Secure sign-in with Google authentication
+- **Guest Mode**: No registration required - start chatting immediately
 - **Session Management**: Auto-refresh tokens with optimized handling
 - **Row-Level Security**: Database-level security with Supabase RLS
 - **Secure Token Storage**: Encrypted token storage and management
@@ -31,8 +32,17 @@ A modern, feature-rich AI chat application built with Vue.js, featuring multiple
 - **Copy Functionality**: Easy copy buttons for code and messages
 - **Responsive Layout**: Seamless mobile and desktop experience
 
+### 🎭 **Guest Mode Features**
+- **No Registration Required**: Start chatting immediately without creating an account
+- **Full AI Provider Access**: Choose between OpenAI and Google Gemini models
+- **Model Flexibility**: Switch between different AI models on the fly
+- **Smart Model Selection**: Automatic optimal token allocation per model
+- **Persistent Preferences**: Model selection saved locally for convenience
+- **Privacy-Focused**: Conversations are not saved or stored
+- **Seamless Experience**: No limitations on chat features or functionality
+
 ### ⚙️ **Customization & Settings**
-- **Model Configuration**: Adjust temperature, max tokens, and system prompts
+- **Model Configuration**: Adjust temperature and system prompts (max tokens auto-optimized)
 - **Provider Settings**: Configure API keys and model preferences
 - **UI Preferences**: Theme selection and interface customization
 - **Export/Import**: Conversation backup and restore functionality

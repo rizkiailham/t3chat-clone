@@ -185,7 +185,7 @@
     ></div>
 
     <!-- Main Chat Area with Floating Glass Effect -->
-    <div class="flex-1 flex flex-col min-w-0 relative p-4 lg:pt-8">
+    <div class="flex-1 flex flex-col min-w-0 relative p-4 lg:pt-8" :class="{'overflow-y-auto': isGuestMode && !guestChatStore.hasMessages}">
       <!-- Floating Chat Container -->
       <div class="flex-1 flex flex-col max-w-4xl mx-auto w-full">
         <!-- Floating Chat Header -->
@@ -217,7 +217,11 @@
                 <h2 class="text-xl font-bold text-gradient bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
                   T3 Chat - Guest Mode
                 </h2>
-                <div class="flex items-center space-x-2 mt-1">
+                <!-- Show compact model selector if user has messages, otherwise show current model -->
+                <div v-if="guestChatStore.hasMessages" class="mt-2">
+                  <GuestModelSelectorCompact />
+                </div>
+                <div v-else class="flex items-center space-x-2 mt-1">
                   <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300">
                     {{ guestChatStore.currentModel.provider }}
                   </span>
@@ -262,7 +266,7 @@
         <div class="flex-1 overflow-hidden relative min-h-0 flex flex-col">
           <!-- Guest Mode Indicator -->
           <div v-if="isGuestMode" class="mx-6 mt-4 flex-shrink-0">
-            <GuestModeIndicator @sign-in="router.push('/login')" />
+            <GuestModeIndicator @sign-in="handleSignIn" />
           </div>
 
           <!-- Authenticated User Welcome Message -->
@@ -294,26 +298,45 @@
           </div>
 
           <!-- Guest Mode Welcome -->
-          <div v-if="isGuestMode && !guestChatStore.hasMessages" class="h-full flex items-center justify-center">
-            <div class="gemini-welcome-card">
-              <div class="relative mb-8">
-                <div class="w-20 h-20 mx-auto bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
-                  <ChatBubbleLeftRightIcon class="w-10 h-10 text-white" />
+          <div v-if="isGuestMode && !guestChatStore.hasMessages" class="h-full flex items-center justify-center p-4">
+            <div class="w-full max-w-4xl space-y-8">
+              <!-- Welcome Header -->
+              <div class="gemini-welcome-card text-center">
+                <div class="relative mb-8">
+                  <div class="w-20 h-20 mx-auto bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
+                    <ChatBubbleLeftRightIcon class="w-10 h-10 text-white" />
+                  </div>
+                  <div class="absolute -top-2 -right-2 w-6 h-6 bg-green-400 rounded-full animate-pulse"></div>
                 </div>
-                <div class="absolute -top-2 -right-2 w-6 h-6 bg-green-400 rounded-full animate-pulse"></div>
-              </div>
-              <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-3">Welcome, Guest!</h3>
-              <p class="text-gray-600 dark:text-gray-400 mb-8 leading-relaxed">
-                Start chatting with AI right away. Your conversation won't be saved, but you can experience the full power of our AI models.
-              </p>
-              <div class="text-center">
-                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  Currently using: <span class="font-semibold">{{ guestChatStore.currentModel.provider }} - {{ guestChatStore.currentModel.name }}</span>
+                <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-3">Welcome, Guest!</h3>
+                <p class="text-gray-600 dark:text-gray-400 mb-4 leading-relaxed">
+                  Start chatting with AI right away. Your conversation won't be saved, but you can experience the full power of our AI models.
                 </p>
-                <!-- Debug Test Button -->
+                <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mb-6">
+                  <div class="flex items-start space-x-2">
+                    <InformationCircleIcon class="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                    <div class="text-sm">
+                      <p class="text-amber-800 dark:text-amber-200 font-medium">Guest Mode Features:</p>
+                      <ul class="text-amber-700 dark:text-amber-300 mt-1 space-y-1">
+                        <li>• Full access to all AI providers and models</li>
+                        <li>• Image uploads supported</li>
+                        <li>• PDF uploads require <button @click="handleSignIn" class="underline hover:text-amber-900 dark:hover:text-amber-100">sign in</button></li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Guest Model Selector -->
+              <div class="w-full">
+                <GuestModelSelector />
+              </div>
+
+              <!-- Debug Test Button -->
+              <div class="text-center">
                 <button
                   @click="testGuestMode"
-                  class="mt-4 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm"
+                  class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm transition-colors"
                 >
                   🧪 Test Guest Chat
                 </button>
@@ -342,6 +365,8 @@
                   @send="handleSendMessage"
                   @height-change="handleInputHeightChange"
                   :disabled="isGuestMode ? guestChatStore.streaming : chatStore.streaming"
+                  :is-guest-mode="isGuestMode"
+                  :current-model="currentModelInfo"
                 />
               </div>
               <div class="hidden sm:block text-center text-xs my-1">T3 can make mistakes, so double-check it</div>
@@ -420,7 +445,8 @@ import {
   XMarkIcon,
   ExclamationCircleIcon,
   ChevronLeftIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  InformationCircleIcon
 } from '@heroicons/vue/24/outline'
 
 import ConversationList from '../Sidebar/ConversationList.vue'
@@ -429,6 +455,8 @@ import ChatInput from './ChatInput.vue'
 import NewChatModal from '../Modals/NewChatModal.vue'
 import SettingsModal from '../Modals/SettingsModal.vue'
 import GuestModeIndicator from '../GuestModeIndicator.vue'
+import GuestModelSelector from '../Guest/GuestModelSelector.vue'
+import GuestModelSelectorCompact from '../Guest/GuestModelSelectorCompact.vue'
 import type { FileAttachment } from '../../types'
 
 const router = useRouter()
@@ -441,6 +469,52 @@ const guestChatStore = useGuestChatStore()
 const isGuestMode = computed(() => authStore.isGuestMode)
 const currentChatStore = computed(() => isGuestMode.value ? guestChatStore : chatStore)
 const currentMessages = computed(() => isGuestMode.value ? guestChatStore.currentMessages : chatStore.currentMessages)
+
+// Get current model info with context length for dynamic character limits
+const currentModelInfo = computed(() => {
+  if (isGuestMode.value) {
+    // For guest mode, get model info from guest store
+    const providers = guestChatStore.getAvailableProviders()
+    const currentProvider = providers.find(p => p.id === guestChatStore.currentModel.provider)
+    const currentModel = currentProvider?.models.find(m => m.id === guestChatStore.currentModel.name)
+
+    return {
+      provider: guestChatStore.currentModel.provider,
+      name: guestChatStore.currentModel.name,
+      context_length: currentModel?.context_length || 4000
+    }
+  } else if (chatStore.currentConversation) {
+    // For authenticated mode, get from current conversation
+    // We need to look up the model's context length from the LLM service
+    // For now, provide reasonable defaults based on known models
+    const modelName = chatStore.currentConversation.model_name
+    let contextLength = 4000 // Default fallback
+
+    // Map known models to their context lengths
+    if (modelName.includes('gpt-4o')) {
+      contextLength = 128000
+    } else if (modelName.includes('gpt-3.5-turbo')) {
+      contextLength = 16385
+    } else if (modelName.includes('gemini-2.0-flash')) {
+      contextLength = 1048576
+    } else if (modelName.includes('gemini-1.5-pro')) {
+      contextLength = 2097152
+    }
+
+    return {
+      provider: chatStore.currentConversation.model_provider,
+      name: chatStore.currentConversation.model_name,
+      context_length: contextLength
+    }
+  }
+
+  // Default fallback
+  return {
+    provider: '',
+    name: '',
+    context_length: 4000
+  }
+})
 
 // Computed property to determine when to show welcome message
 const shouldShowWelcomeMessage = computed(() => {
@@ -587,6 +661,9 @@ onMounted(async () => {
     }
   } else if (authStore.isGuestMode) {
     console.log('🎭 Guest mode active')
+    // Load guest model preference
+    guestChatStore.loadGuestModelPreference()
+
     // For guest mode, redirect to home if trying to access specific conversation
     const conversationId = router.currentRoute.value.params.conversationId as string
     if (conversationId) {
@@ -1237,6 +1314,11 @@ function testConversationSelection() {
   testSelection()
 }
 
+function handleSignIn() {
+  console.log('🔐 Guest user requesting sign in')
+  router.push('/login')
+}
+
 function testGuestMode() {
   console.log('🧪 Testing guest mode functionality...')
   console.log('🎭 Current state:', {
@@ -1290,7 +1372,7 @@ function testGuestMode() {
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 24px;
-  padding: 48px;
+  padding: 20px;
   text-align: center;
   max-width: 500px;
   margin: 0 auto;

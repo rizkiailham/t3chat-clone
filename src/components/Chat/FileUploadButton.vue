@@ -5,7 +5,7 @@
       @click="triggerFileInput"
       :disabled="uploading || disabled"
       class="group relative pb-[14px] px-4 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/20 dark:hover:to-purple-900/20 rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg"
-      title="Upload image or PDF"
+      :title="props.isGuestMode ? 'Upload images (PDFs require sign-in)' : 'Upload image or PDF'"
     >
       <!-- Upload Icon -->
       <PaperClipIcon
@@ -153,7 +153,7 @@
     <input
       ref="fileInput"
       type="file"
-      accept="image/*,.pdf"
+      :accept="props.isGuestMode ? 'image/*' : 'image/*,.pdf'"
       multiple
       @change="handleFileSelect"
       class="hidden"
@@ -172,6 +172,7 @@ interface Props {
   disabled?: boolean
   maxFiles?: number
   currentFileCount?: number
+  isGuestMode?: boolean
 }
 
 interface Emits {
@@ -182,7 +183,8 @@ interface Emits {
 const props = withDefaults(defineProps<Props>(), {
   disabled: false,
   maxFiles: 5,
-  currentFileCount: 0
+  currentFileCount: 0,
+  isGuestMode: false
 })
 
 const emit = defineEmits<Emits>()
@@ -209,6 +211,15 @@ async function handleFileSelect(event: Event) {
   const selectedFiles = Array.from(target.files || [])
 
   if (selectedFiles.length === 0) return
+
+  // Check for PDF files in guest mode
+  if (props.isGuestMode) {
+    const pdfFiles = selectedFiles.filter(file => file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'))
+    if (pdfFiles.length > 0) {
+      emit('error', 'PDF uploads are not available in guest mode. Please sign in to upload PDF files.')
+      return
+    }
+  }
 
   // Check file count limit
   if (props.currentFileCount + selectedFiles.length > props.maxFiles) {

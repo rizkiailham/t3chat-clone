@@ -19,7 +19,7 @@
       />
 
       <div
-        class="rounded-2xl p-5 shadow-lg backdrop-blur-sm transition-all duration-200 hover:shadow-xl"
+        class="rounded-2xl p-5 shadow-lg backdrop-blur-sm transition-all duration-200 hover:shadow-xl max-w-2xl"
         :class="messageClasses"
       >
         <!-- Edit mode -->
