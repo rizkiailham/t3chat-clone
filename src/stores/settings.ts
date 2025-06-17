@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { LLMService } from '../services/llm.service'
-import type { AppSettings, LLMProvider, SettingsState } from '../types'
+import type { AppSettings, LLMProvider } from '../types'
 
 const llmService = new LLMService()
 

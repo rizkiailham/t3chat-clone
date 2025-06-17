@@ -35,7 +35,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ExclamationCircleIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '../stores/auth'
-import { supabase } from '../services/supabase'
+
 
 const router = useRouter()
 const authStore = useAuthStore()

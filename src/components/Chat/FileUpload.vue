@@ -100,7 +100,7 @@ import {
   ExclamationTriangleIcon,
   InformationCircleIcon 
 } from '@heroicons/vue/24/outline'
-import { fileUploadService, type FileUploadResult } from '../../services/file-upload.service'
+import { fileUploadService } from '../../services/file-upload.service'
 import type { FileAttachment } from '../../types'
 
 // Props
@@ -175,8 +175,9 @@ async function handleFileSelect(event: Event) {
       files.value = [...files.value, ...processedFiles]
     }
 
-  } catch (err: any) {
-    error.value = `Failed to process files: ${err.message}`
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+    error.value = `Failed to process files: ${errorMessage}`
     emit('error', error.value)
   } finally {
     uploading.value = false

@@ -167,7 +167,7 @@ interface Emits {
   (e: 'close'): void
 }
 
-const emit = defineEmits<Emits>()
+defineEmits<Emits>()
 const settingsStore = useSettingsStore()
 
 const themes = [
@@ -199,11 +199,6 @@ function onModelChange(event: Event) {
 function onTemperatureChange(event: Event) {
   const target = event.target as HTMLInputElement
   settingsStore.setTemperature(parseFloat(target.value))
-}
-
-function onSystemPromptChange(event: Event) {
-  const target = event.target as HTMLTextAreaElement
-  settingsStore.setSystemPrompt(target.value)
 }
 
 function resetSettings() {

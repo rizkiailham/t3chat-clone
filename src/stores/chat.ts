@@ -603,7 +603,7 @@ export const useChatStore = defineStore('chat', () => {
                     content: fullContent
                   }
                 }
-              } catch (streamError) {
+              } catch {
                 console.log('Streaming failed, trying non-streaming...')
                 hasContent = false
               }
@@ -693,7 +693,7 @@ export const useChatStore = defineStore('chat', () => {
             content: fullContent
           }
         }
-      } catch (streamError) {
+      } catch {
         console.log('Streaming failed during regeneration, trying non-streaming...')
         hasContent = false
       }

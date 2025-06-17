@@ -282,9 +282,10 @@ async function handleFileSelect(event: Event) {
       emit('files-selected', processedFiles)
     }
 
-  } catch (err: any) {
-    uploadError.value = `Failed to process files: ${err.message}`
-    emit('error', `Failed to process files: ${err.message}`)
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+    uploadError.value = `Failed to process files: ${errorMessage}`
+    emit('error', `Failed to process files: ${errorMessage}`)
   } finally {
     // Delay closing to show final state
     setTimeout(() => {

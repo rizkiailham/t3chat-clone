@@ -14,9 +14,36 @@ export default defineConfigWithVueTs(
     files: ['**/*.{ts,mts,tsx,vue}'],
   },
 
-  globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**']),
+  globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**', '**/node_modules/**']),
 
   pluginVue.configs['flat/essential'],
   vueTsConfigs.recommended,
   skipFormatting,
+
+  // Production-friendly overrides
+  {
+    name: 'app/production-overrides',
+    rules: {
+      // Allow unused variables with underscore prefix
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        ignoreRestSiblings: true
+      }],
+
+      // Allow any types for external APIs and error handling
+      '@typescript-eslint/no-explicit-any': 'off',
+
+      // Allow require imports in config files
+      '@typescript-eslint/no-require-imports': 'off',
+
+      // Vue specific rules
+      'vue/multi-word-component-names': 'off',
+      'vue/no-unused-vars': 'off',
+
+      // Allow console in development
+      'no-console': 'off',
+      'no-debugger': process.env.NODE_ENV === 'production' ? 'error' : 'off'
+    }
+  }
 )

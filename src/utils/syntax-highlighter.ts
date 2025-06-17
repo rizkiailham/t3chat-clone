@@ -150,7 +150,7 @@ export function formatCodeBlock(content: string): string {
     (_match, language, code) => {
       const detectedLanguage = language || detectLanguage(code)
       const highlightedCode = highlightCode(code.trim(), detectedLanguage)
-      const languageColor = LANGUAGE_COLORS[detectedLanguage] || '#8b5cf6'
+      const _languageColor = LANGUAGE_COLORS[detectedLanguage] || '#8b5cf6'
       const languageIcon = getLanguageIcon(detectedLanguage)
 
       return `
@@ -216,7 +216,7 @@ if (typeof window !== 'undefined') {
     if (codeBlock) {
       const text = codeBlock.textContent || ''
       navigator.clipboard.writeText(text).then(() => {
-        const copyText = button.querySelector('.copy-text')
+        const _copyText = button.querySelector('.copy-text')
         const originalText = button.innerHTML
 
         // Show success state

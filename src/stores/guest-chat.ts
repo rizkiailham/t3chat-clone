@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { LLMService } from '../services/llm.service'
-import type { Message, Conversation, FileAttachment, ChatMessage } from '../types'
+import type { Message, FileAttachment, ChatMessage } from '../types'
 
 const llmService = new LLMService()
 

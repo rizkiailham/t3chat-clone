@@ -511,11 +511,8 @@ import {
   ArrowRightStartOnRectangleIcon,
   ChatBubbleLeftRightIcon,
   Bars3Icon,
-  XMarkIcon,
-  ExclamationCircleIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  InformationCircleIcon,
   CpuChipIcon
 } from '@heroicons/vue/24/outline'
 
@@ -536,8 +533,7 @@ const guestChatStore = useGuestChatStore()
 
 // Computed properties for handling both authenticated and guest modes
 const isGuestMode = computed(() => authStore.isGuestMode)
-const currentChatStore = computed(() => isGuestMode.value ? guestChatStore : chatStore)
-const currentMessages = computed(() => isGuestMode.value ? guestChatStore.currentMessages : chatStore.currentMessages)
+
 
 // Get current model info with context length for dynamic character limits
 const currentModelInfo = computed(() => {
@@ -598,13 +594,7 @@ const shouldShowWelcomeMessage = computed(() => {
          !chatStore.currentConversation
 })
 
-// Computed property to determine when to show chat input
-const shouldShowChatInput = computed(() => {
-  if (isGuestMode.value) {
-    return true // Always show input in guest mode
-  }
-  return authStore.isAuthenticated && !!chatStore.currentConversation
-})
+
 
 const messagesContainer = ref<HTMLElement>()
 const showNewChatModal = ref(false)
@@ -1122,17 +1112,18 @@ async function handleCreateConversation(data: { title: string; provider: string;
     // Clear any previous errors
     chatStore.clearError()
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Failed to create conversation:', error)
 
     // Provide specific error messages
-    if (error.message?.includes('JWT') || error.message?.includes('auth')) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    if (errorMessage.includes('JWT') || errorMessage.includes('auth')) {
       chatStore.error = 'Session expired. Please refresh the page and try again.'
       authStore.refreshAuth().catch(console.error)
-    } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+    } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
       chatStore.error = 'Network error. Please check your connection and try again.'
     } else {
-      chatStore.error = error.message || 'Failed to create conversation. Please try again.'
+      chatStore.error = errorMessage || 'Failed to create conversation. Please try again.'
     }
   }
 }
@@ -1285,9 +1276,10 @@ async function testApiConnections() {
 
     alert(message)
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ API connection test failed:', error)
-    alert(`API connection test failed: ${error?.message || 'Unknown error'}\n\nCheck console for details.`)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    alert(`API connection test failed: ${errorMessage}\n\nCheck console for details.`)
   }
 }
 

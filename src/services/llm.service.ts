@@ -342,7 +342,7 @@ export class LLMService {
                 if (content) {
                   yield content
                 }
-              } catch (e) {
+              } catch {
                 // Skip invalid JSON
                 console.warn('Failed to parse streaming data:', data)
               }
@@ -466,7 +466,7 @@ export class LLMService {
                   yield content
                 }
               }
-            } catch (e) {
+            } catch {
               // Skip invalid JSON
             }
           }
@@ -694,7 +694,7 @@ export class LLMService {
                 if (content) {
                   yield content
                 }
-              } catch (e) {
+              } catch {
                 console.warn('Failed to parse Google streaming data:', data)
               }
             }

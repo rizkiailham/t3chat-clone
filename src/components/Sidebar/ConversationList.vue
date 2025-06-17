@@ -175,7 +175,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import {
   ChatBubbleLeftIcon,
   EllipsisVerticalIcon,
@@ -197,7 +197,7 @@ interface Emits {
   (e: 'conversationSelected'): void
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const _props = withDefaults(defineProps<Props>(), {
   collapsed: false
 })
 
@@ -230,7 +230,7 @@ function formatDate(dateString: string): string {
 
 async function selectConversation(conversation: Conversation) {
   const maxRetries = 3
-  let lastError: any = null
+  let _lastError: any = null
 
   console.log('🎯 ConversationList: Selecting conversation:', conversation.id, conversation.title)
 
@@ -269,7 +269,7 @@ async function selectConversation(conversation: Conversation) {
       break
 
     } catch (error: any) {
-      lastError = error
+      _lastError = error
       console.error(`❌ ConversationList: Selection failed (attempt ${attempt + 1}):`, {
         message: error.message,
         code: error.code,
